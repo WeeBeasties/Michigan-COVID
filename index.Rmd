@@ -1,0 +1,259 @@
+---
+title: "COVID-19 in Michigan"
+author: "Clifton Franklund"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+```{r libraries, echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(tidyquant)
+library(ggpubr)
+library(stringr)
+library(readxl)
+library(choroplethr)
+library(choroplethrMaps)
+library(RColorBrewer)
+library(tadaatoolbox)
+```
+
+```{r data, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Load COVID-19 case data from Michigan state site
+download.file("https://www.michigan.gov/documents/coronavirus/Cases_by_County_and_Date_2020-08-26_700476_7.xlsx", destfile="./rawData/Cases_by_County_and_Date.xlsx")
+michiganData <- read_xlsx("./rawData/Cases_by_County_and_Date.xlsx")
+
+# Load county census data
+censusData <- read_csv("./rawData/csvData.csv")
+
+# Load county map codes
+data(county.regions)
+
+# Load population densities
+density <- read_csv("./rawData/density.csv")
+```
+
+```{r cleanData, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Clean up census data set
+censusData <- censusData %>% 
+  rename(County = CTYNAME) %>% 
+  mutate(County = str_remove_all(County," County"))
+censusData$County <- str_to_lower(censusData$County)
+
+# Lower case county names
+density$County <- str_to_lower(density$County)
+
+# Get just Michigan county names in map data
+county.regions <- filter(county.regions, state.name == "michigan")
+
+## Clean up michiganData column names
+michiganData <- michiganData %>% 
+  rename(County = COUNTY, Status = CASE_STATUS) %>% 
+  filter(County != "MDOC", County != "Out-of-State", County != "FCI", County != "Unknown", !is.na(Date))
+michiganData$County <- str_to_lower(michiganData$County)
+michiganData$County <- recode(michiganData$County, "st clair" = "st. clair", "st joseph" = "st. joseph")
+
+# Combine Detroit City with Wayne County
+detroit <- michiganData %>% filter(County == "detroit city")
+wayne <- michiganData %>% filter(County == "wayne")
+combined <- wayne
+combined$Cases <- combined$Cases + detroit$Cases
+combined$Cases.Cumulative <- combined$Cases.Cumulative + detroit$Cases.Cumulative
+combined$Deaths <- combined$Deaths + detroit$Deaths
+combined$Deaths.Cumulative <- combined$Deaths.Cumulative + detroit$Deaths.Cumulative
+michiganData <- subset(michiganData, County != "detroit city")
+michiganData <- subset(michiganData, County != "wayne")
+michiganData <- rbind(michiganData, combined)
+
+# Add mapping data to the dataset
+michiganData <- left_join(michiganData, county.regions, by =c("County" = "county.name"))
+
+# Add census data to the datset
+michiganData <- left_join(michiganData, censusData, by = c("County"))
+
+# Add population densities
+michiganData <- left_join(michiganData, density, by = c("County"))
+
+# Get just the confirmed cases
+michiganConfirmedData <- michiganData %>% 
+  filter(Status == "Confirmed")
+write_csv(michiganConfirmedData, "./processedData/michiganConfirmedData.csv")
+
+# Get just the probable cases
+michiganProbableData <- michiganData %>% 
+  filter(Status == "Probable")
+write_csv(michiganProbableData, "./processedData/michiganProbableData.csv")
+
+# Add confirmed and probable cases to get total cases
+michiganTotalData <- tibble(County = michiganConfirmedData$County, Date = michiganConfirmedData$Date, Status = "Total", Cases = michiganConfirmedData$Cases + michiganProbableData$Cases, Deaths = michiganConfirmedData$Deaths + michiganProbableData$Deaths, Cases.Cumulative = michiganConfirmedData$Cases.Cumulative + michiganProbableData$Cases.Cumulative, Deaths.Cumulative = michiganConfirmedData$Deaths.Cumulative + michiganProbableData$Deaths.Cumulative, Updated = michiganConfirmedData$Updated, Region = michiganConfirmedData$region, County.FIPS.Character = michiganConfirmedData$county.fips.character, State.Name = michiganConfirmedData$state.name, State.FIPS.Character = michiganConfirmedData$state.fips.character, State.Abb = michiganConfirmedData$state.abb, pop2018 = michiganConfirmedData$pop2018, GrowthRate = michiganConfirmedData$GrowthRate, Density = michiganConfirmedData$Density)
+metroCounty <- c("macomb", "oakland", "wayne")
+michiganTotalData$Metro <- ifelse(michiganTotalData$County %in% metroCounty, "Yes", "No")
+
+write_csv(michiganTotalData, "./processedData/michiganTotalData.csv")
+
+# Summarize total numbers for the three-county metro Detroit area
+metroDetroit <- michiganTotalData %>% 
+  filter(County == "wayne" | County == "oakland" | County == "macomb") %>% 
+  group_by(Date) %>% 
+  mutate(Cases = sum(Cases), Deaths = sum(Deaths), Cases.Cumulative = sum(Cases.Cumulative), Deaths.Cumulative = sum(Deaths.Cumulative))
+metroDetroit <- metroDetroit[1:168, ]
+metroDetroit$County <- "Metro Detroit"
+write_csv(metroDetroit, "./processedData/metroDetroit.csv")
+
+# Summarize total numbers for the rest of Michigan
+notDetroit <- michiganTotalData %>% 
+  filter(County != "wayne" & County != "oakland" & County != "macomb") %>% 
+  group_by(Date) %>% 
+  mutate(Cases = sum(Cases), Deaths = sum(Deaths), Cases.Cumulative = sum(Cases.Cumulative), Deaths.Cumulative = sum(Deaths.Cumulative))
+notDetroit <- notDetroit[1:168, ]
+notDetroit$County <- "Not Detroit"
+write_csv(notDetroit, "./processedData/notDetroit.csv")
+
+# Create on comparison set
+compareDetroit <- rbind(metroDetroit, notDetroit)
+
+metroDataCount <- michiganTotalData %>% 
+  group_by(County) %>% 
+  summarize(Cases = max(Cases.Cumulative), Deaths = max(Deaths.Cumulative), Metro = Metro)
+metroDataCount <- unique(metroDataCount)
+
+metroDataNorm <- michiganTotalData %>% 
+  group_by(County) %>% 
+  summarize(Cases = max(Cases.Cumulative)/pop2018*100000, Deaths = max(Deaths.Cumulative)/pop2018*100000, Metro = Metro)
+metroDataNorm <- unique(metroDataNorm)
+```
+
+## Abstract  
+This is a pseudo-scientific analysis of some COVID-19 trends in Michigan that interest me. I strongly suspect that the vast majority of cases and adverse outcomes are concentrated in the Detroit area. Our response as a state, however, has not really been defined geographically. This is probably not the best way to steward our limited resources (note for future microbial pandemics).
+
+## Data  
+One should always be a bit skeptical of analyses with pretty graphs and figures. It is important to know what data were used, how they were manipulated, and also the trustworthyness of the data sources. TheMichigan COVID-19 data for this document were obtained at https://www.michigan.gov/coronavirus/0,9753,7-406-98163_98173---,00.html in the Public Use Datasets called "Cases by County and Date". Michigan county populations were found at https://worldpopulationreview.com/us-counties/states/mi which gives the 2018 census numbers. These were the most recent reliable numbers that I could find at the moment.
+
+## Data munging
+The Michigan COVID-19 dataset had a few peculiarities that I need to deal with in order to analyze it easily. There were several "counties" that are not actual Michigan counties that needed to be cleaned. The values for "Out-of-State" are not relevant for my purposes and were removed from the analyses. Likewise, prison populations ("FCI" and "MDOC") cannot be ascribed to particular counties and were, therefore, also removed. Cases with "Unknown" origins were also removed. Finally, the dataset lists "City of Detroit" as a separate entity, those numbers were added back into it's home country (Wayne) to facilitate analysis.
+
+The number of cases and deaths per day are recorded for both confirmed and probable cases. To be as conservative as possible, these numbers were added together to create a total number of cases and deaths per day from each county (along with total cumulative cases and deaths). These total values, confirmed + probable, are used for all of the analyses in this report.
+
+GIS information was left-joined onto the total data. The census data was also left-joined and used to create population-normalized values (cases or deaths per 100,000 population).
+
+## Statewide distribution   
+Many websites report COVID-19 cases or deaths in Michigan using county maps. The Michigan state map can be found [here](https://www.michigan.gov/coronavirus/0,9753,7-406-98163_98173---,00.html). This representation can be a little misleading, though. One might assume that the intensity of the colors is proportional to the number of cases or deaths - this is not necessarily true. If you examine the legends you will notice that the color bins are not necessarily spaced out evenly. Figure 1 shows the total number of cases and deaths by county in Michigan using a linear color scale.
+
+```{r state_map1, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=14, fig.cap="**Figure 1:** State-wide distribution of COVID-19. Panel A shows total cases, while panel B shows total deaths."}
+mapDataA <- michiganTotalData %>% 
+  group_by(Region) %>% 
+  rename(region = Region) %>% 
+  summarize(value = max(Cases.Cumulative))
+mapDataA <- unique(mapDataA)
+
+mapA <- county_choropleth(mapDataA, state_zoom = "michigan", num_colors = 1)
+
+mapDataB <- michiganTotalData %>% 
+  group_by(Region) %>% 
+  rename(region = Region) %>% 
+  summarize(value = max(Deaths.Cumulative))
+mapDataB <- unique(mapDataB)
+
+mapB <- county_choropleth(mapDataB, state_zoom = "michigan", num_colors = 1) 
+
+ggarrange(mapA, mapB, labels = c("A", "B"), ncol = 1, nrow = 2, font.label = list(size = 28, color = "black", face = "bold", family = NULL))
+```
+
+As expected, the metropolitan Detroit tri-county (Wayne, Oakland, and Macomb) area has the vast majority of reported cases and deaths. The exact values are summarize in Table 1.
+
+```{r countTable, echo=FALSE, message=FALSE, warning=FALSE}
+dataTable <- metroDataCount %>% 
+  group_by(Metro) %>% 
+  summarize(Total.Cases = sum(Cases), Total.Deaths = sum(Deaths))
+knitr::kable(dataTable, format.args = list(big.mark = ",", digits = 1), caption = "**Table1:** Total number of COVID-19 cases and deaths in metopolitan Detroit (Wayne, Oakland, and Macomb counties) vs all other Michigan counties combined.")
+```
+
+The three-county metropolitan Detroit area accounted for `r format(dataTable$Total.Cases[2], big.mark=",", scientific=FALSE)` out of `r format(dataTable[1,2] + dataTable[2,2], big.mark=",", scientific=FALSE)` total cases in Michigan (`r round(dataTable[2,2]/(dataTable[1,2] + dataTable[2,2])*100,1)`%). Metropolitan Detroit also represented `r format(dataTable$Total.Deaths[2], big.mark=",", scientific=FALSE)` out of `r format(dataTable[1,3] + dataTable[2,3], big.mark=",", scientific=FALSE)` total COVID-19 deaths in Michigan (`r round(dataTable[2,3]/(dataTable[1,3] + dataTable[2,3])*100,1)`%).
+
+But wait, you say, don't most people live in those counties? Well... not _most_, but quite a few; let's normalize the cases and deaths by county population and try that again.
+
+```{r state_map2, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=14, fig.cap="**Figure 2:** State-wide distribution of COVID-19 normalized for county population. Panel A shows total cases per 100,000 people, while panel B shows total deaths per 100,000 people."}
+mapDataC <- michiganTotalData %>% 
+  group_by(Region) %>% 
+  rename(region = Region) %>% 
+  summarize(value = max(Cases.Cumulative)/pop2018*100000)
+mapDataC <- unique(mapDataC)
+mapC <- county_choropleth(mapDataC, state_zoom = "michigan", num_colors = 1)
+
+mapDataD <- michiganTotalData %>% 
+  group_by(Region) %>% 
+  rename(region = Region) %>% 
+  summarize(value = max(Deaths.Cumulative)/pop2018*100000)
+mapDataD <- unique(mapDataD)
+mapD <- county_choropleth(mapDataD, state_zoom = "michigan", num_colors = 1)
+
+ggarrange(mapC, mapD, labels = c("A", "B"), ncol = 1, nrow = 2, font.label = list(size = 28, color = "black", face = "bold", family = NULL))
+```
+
+Ok, so Figure 2 shows that when adjusting for population the number of cases is more widespread across the state. The number of cases still appears to be greater below a latitude of about 43.5°N. The number of deaths per 100,000 is interesting because you can discern the interstate highway system on the map. the I-75 corridor is a fairly dark blue color. The I-94 and I-96 corridors are also visible, but less blue. This is not necessarily causative (most urban centers are arrayed along the interstate highways). Table 2 shows the differences between Detroit and the rest of the state.
+
+```{r norm_table, echo=FALSE, message=FALSE, warning=FALSE}
+normDataTable <- metroDataNorm %>% 
+  group_by(Metro) %>% 
+  summarize(Mean.Cases = mean(Cases), SD.Cases = sd(Cases), Mean.Deaths = mean(Deaths), SD.Deaths = sd(Deaths))
+knitr::kable(normDataTable, format.args = list(big.mark = ",", digits = 2), caption = "**Table2:** Total number of COVID-19 cases and deaths per 100,000 people in metopolitan Detroit (Wayne, Oakland, and Macomb counties) vs all other Michigan counties combined.")
+my_t.test <- t.test(Deaths~Metro, data=metroDataNorm)
+```
+After normalizing for county population, metropolitan Detroit counties average `r round(normDataTable[2,2]/normDataTable[1,2],1)`-times more COVID-19 cases and `r round(normDataTable[2,4]/normDataTable[1,4],1)`-times more COVID-19 deaths than the rest of Michigan counties. On average, metropolitan Detroit (m = `r round(my_t.test$estimate[2],1)`) experienced significantly higher rates of COVID-19 deaths per 100,000 people than the rest of the state (m = `r round(my_t.test$estimate[1],1)`), *t*(`r round(my_t.test$parameter[1],2)`) = `r round(my_t.test$statistic[1],2)`, *p* < `r round(my_t.test$p.value,3)`.
+
+## Detroit vs everyone else
+
+Since the Detroit metropolitan area seems to be hit harder than the rest of the state, I wondered what the trends of cases and deaths looked like over time. Figure 3 shows the trends of total cases and deaths along with a five-day moving average of each. 
+
+```{r Detroit_plot, echo=FALSE, message=FALSE, warning=FALSE, fig.width=10, fig.height=10, fig.cap="**Figure 3:** A comparison of COVID-19 incidence between metropolitan Detroit (red) and the rest of Michigan (blue). Five-day moving averages of the data are shown as dotted lines."}
+plotA <- ggplot(compareDetroit, aes(x=Date, y=Cases, color=County)) +
+  geom_line() +
+  ylim(0,1500) +
+  scale_colour_manual(values=c('Metro Detroit'="firebrick", 'Not Detroit'="dodgerblue")) +
+  geom_ma(ma_fun = EMA, n = 5, wilder = TRUE, linetype = 3, size = 1.25) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+plotB <- ggplot(compareDetroit, aes(x=Date, y=Deaths, color=County)) +
+  geom_line() +
+  ylim(0,150) +
+  scale_colour_manual(values=c('Metro Detroit'="firebrick", 'Not Detroit'="dodgerblue")) +
+  geom_ma(ma_fun = EMA, n = 5, wilder = TRUE, linetype = 3, size = 1.25) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+ggarrange(plotA, plotB, labels = c("A", "B"), ncol = 1, nrow = 2, font.label = list(size = 20, color = "black", face = "bold", family = NULL))
+```
+
+The intial spike of COVID-19 cases appears to have spiked around the beginning of April in Detroit and about a month later in other counties (abeit at a much lower level). As restrictions were dropped in Michigan in June, the number of cases began to increase again. They appear to be flattening out over the past month. Interestingly, The majority of all COVID-19 deaths in Michigan occurred in Detroit in the first wave of infections. The reemergence of COVID-19 cases through July and August has not been accompanied by a coincident increase in deaths. Perhaps less severe cases are being detected more frequently now due to increased testing.
+
+## Comparing Mecosta (Ferris) and Isabella (Central Michigan) county cases  
+
+Finally, I am also interested in comparing how Ferris State University does in controlling COVID-19 compared to Central Michigan University. Figure 4 compares the total number of COVID-19 cases between Mecosta and Isabella counties.
+
+```{r county_plot, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=7, fig.cap="**Figure 4:** A comparison of the number of total cases in Mecosta (red) and Isabella (blue) counties. The bars indicate total daily cases and the lines are five-day moving averages."}
+counties <- michiganTotalData %>% 
+  filter(County == "isabella" | County == "mecosta" )
+ggplot(counties, aes(x=Date, y=Cases, color=County)) +
+  scale_colour_manual(values=c('mecosta'="firebrick", 'isabella'="dodgerblue")) +
+  geom_bar(stat = "identity") +
+  geom_ma(ma_fun = EMA, n = 5, wilder = TRUE, linetype = 1, size = 2) +
+  ylim(0,30) +
+  theme_bw() +
+  theme(legend.position="none")
+```
+
+CMU students went back to school earlier than Ferris students. It appears that this influx of students (and increased testing on campus) resulted in a spike of cases. It will be interesting to see how big of a spike Mecosta county experiences over the next few weeks.
+
+## Conclusions  
+
+* COVID-19 cases and deaths are not uniformly distributed across the state.
+* Metopolitan Detroit accounts for over 58% of all COVID-19 cases and 75% of all deaths.
+* After adjusting for county population, metropolitan Detroit counties have over 3-times more cases and 7-times more deaths than other Michigan countiues.
+* The difference between metropolitan Detroit and other counties is statistically significant.
+* The return of students to campus will coincide with an intial spike in COVID-19 cases. It will be interesting to see how well this spike can be controlled on campus.
+
+
