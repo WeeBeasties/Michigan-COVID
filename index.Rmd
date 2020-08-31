@@ -22,7 +22,7 @@ library(tadaatoolbox)
 ```{r data, echo=FALSE, message=FALSE, warning=FALSE}
 
 # Load COVID-19 case data from Michigan state site
-download.file("https://www.michigan.gov/documents/coronavirus/Cases_and_Deaths_by_County_and_Date_2020-08-28_700845_7.xlsx", destfile="./rawData/Cases_by_County_and_Date.xlsx")
+download.file("https://www.michigan.gov/documents/coronavirus/Cases_by_County_and_Date_2020-08-31_700922_7.xlsx", destfile="./rawData/Cases_by_County_and_Date.xlsx")
 michiganData <- read_xlsx("./rawData/Cases_by_County_and_Date.xlsx")
 
 # Load county census data
@@ -127,7 +127,7 @@ metroDataNorm <- unique(metroDataNorm)
 ```
 
 ## Abstract  
-This is a pseudo-scientific analysis of some COVID-19 trends in Michigan that interest me. I strongly suspect that the vast majority of cases and adverse outcomes are concentrated in the Detroit area. Our response as a state, however, has not really been defined geographically. This is probably not the best way to steward our limited resources (note for future microbial pandemics).
+This is an exploratory analysis of some COVID-19 trends in Michigan that interest me. I strongly suspect that the vast majority of cases and adverse outcomes are concentrated in the Detroit area. Our response as a state, however, has not really been defined geographically. This is probably not the best way to steward our limited resources (note for future microbial pandemics). I am also keenly interested in the impact that reopening college campuses will have on the overall trajectory of COVID-19 incidence in our region.
 
 ## Data  
 One should always be a bit skeptical of analyses with pretty graphs and figures. It is important to know what data were used, how they were manipulated, and also the trustworthyness of the data sources. TheMichigan COVID-19 data for this document were obtained at https://www.michigan.gov/coronavirus/0,9753,7-406-98163_98173---,00.html in the Public Use Datasets called "Cases by County and Date". Michigan county populations were found at https://worldpopulationreview.com/us-counties/states/mi which gives the 2018 census numbers. These were the most recent reliable numbers that I could find at the moment.
@@ -230,17 +230,18 @@ ggarrange(plotA, plotB, labels = c("A", "B"), ncol = 1, nrow = 2, font.label = l
 
 The intial spike of COVID-19 cases appears to have spiked around the beginning of April in Detroit and about a month later in other counties (abeit at a much lower level). As restrictions were dropped in Michigan in June, the number of cases began to increase again. They appear to be flattening out over the past month. Interestingly, The majority of all COVID-19 deaths in Michigan occurred in Detroit in the first wave of infections. The reemergence of COVID-19 cases through July and August has not been accompanied by a coincident increase in deaths. Perhaps less severe cases are being detected more frequently now due to increased testing.
 
-## Comparing Mecosta (Ferris) and Isabella (Central Michigan) county cases  
+## Comparing Isabella (Central Michigan University), Mecosta (Ferris State University) and Ottawa (Grand Valley State University) county cases  
 
-Finally, I am also interested in comparing how Ferris State University does in controlling COVID-19 compared to Central Michigan University. Figure 4 compares the total number of COVID-19 cases between Mecosta and Isabella counties.
+Finally, I am also interested in comparing how Ferris State University does in controlling COVID-19 compared to Central Michigan University and Grand Valley State University. Figure 4 compares the total number of COVID-19 cases between those three counties.
 
-```{r county_plot, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=7, fig.cap="**Figure 4:** A comparison of the number of total cases in Isabella (including Central Michigan University, Mecosta (including Ferris State University) and Ottawa (including Grand Valley State University) counties. The bars indicate total daily cases and the lines are five-day moving averages."}
+```{r county_plot, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=7, fig.cap="**Figure 4:** A comparison of the number of total cases in Isabella, Mecosta, and Ottawa counties. The bars indicate total daily cases and the lines are five-day moving averages. The vertical lines indicate the fourth of July, CMU opening on August 17th, and GVSU and FSU opening on August 31st."}
 counties <- michiganTotalData %>% 
   filter(County == "isabella" | County == "mecosta" | County == "ottawa")
 ggplot(counties, aes(x=Date, y=Cases, color=County)) +
   scale_colour_manual(values=c('mecosta'="firebrick", 'isabella'="dodgerblue", 'ottawa'="steelblue")) +
   geom_bar(stat = "identity") +
   geom_ma(ma_fun = EMA, n = 5, wilder = TRUE, linetype = 1, size = 2) +
+  geom_vline(xintercept = as.POSIXct(as.Date(c("2020-07-04", "2020-08-17", "2020-08-31"))), linetype=4) +
   facet_grid(rows=vars(County)) +
   ylim(0,30) +
   theme_bw() +
