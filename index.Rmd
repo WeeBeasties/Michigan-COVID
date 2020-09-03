@@ -22,7 +22,7 @@ library(tadaatoolbox)
 ```{r data, echo=FALSE, message=FALSE, warning=FALSE}
 
 # Load COVID-19 case data from Michigan state site
-download.file("https://www.michigan.gov/documents/coronavirus/Cases_by_County_and_Date_2020-08-31_700922_7.xlsx", destfile="./rawData/Cases_by_County_and_Date.xlsx")
+download.file("https://www.michigan.gov/documents/coronavirus/Cases_by_County_and_Date_2020-09-02_701221_7.xlsx", destfile="./rawData/Cases_by_County_and_Date.xlsx")
 michiganData <- read_xlsx("./rawData/Cases_by_County_and_Date.xlsx")
 
 # Load county census data
