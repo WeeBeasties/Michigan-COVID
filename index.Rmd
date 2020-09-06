@@ -22,7 +22,8 @@ library(tadaatoolbox)
 ```{r data, echo=FALSE, message=FALSE, warning=FALSE}
 
 # Load COVID-19 case data from Michigan state site
-download.file("https://www.michigan.gov/documents/coronavirus/Cases_by_County_and_Date_2020-09-02_701221_7.xlsx", destfile="./rawData/Cases_by_County_and_Date.xlsx")
+download.file("https://www.michigan.gov/documents/coronavirus/Cases_and_Deaths_by_County_and_Date_2020-09-05_701510_7.xlsx", destfile="./rawData/Cases_by_County_and_Date.xlsx")
+
 michiganData <- read_xlsx("./rawData/Cases_by_County_and_Date.xlsx")
 
 # Load county census data
@@ -124,6 +125,9 @@ metroDataNorm <- michiganTotalData %>%
   group_by(County) %>% 
   summarize(Cases = max(Cases.Cumulative)/pop2018*100000, Deaths = max(Deaths.Cumulative)/pop2018*100000, Metro = Metro)
 metroDataNorm <- unique(metroDataNorm)
+
+weekly <- michiganTotalData %>% group_by(County, Week = week(Date)) %>% summarise(Weekly.Cases = sum(Cases), Weekly.Deaths = sum(Deaths))
+
 ```
 
 ## Abstract  
@@ -237,13 +241,28 @@ Finally, I am also interested in comparing how Ferris State University does in c
 ```{r county_plot, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=7, fig.cap="**Figure 4:** A comparison of the number of total cases in Isabella, Mecosta, and Ottawa counties. The bars indicate total daily cases and the lines are five-day moving averages. The vertical lines indicate the fourth of July, CMU opening on August 17th, and GVSU and FSU opening on August 31st."}
 counties <- michiganTotalData %>% 
   filter(County == "isabella" | County == "mecosta" | County == "ottawa")
-ggplot(counties, aes(x=Date, y=Cases, color=County)) +
-  scale_colour_manual(values=c('mecosta'="firebrick", 'isabella'="dodgerblue", 'ottawa'="steelblue")) +
+ggplot(counties, aes(x=Date, y=Cases, color=County, fill=County)) +
+  scale_color_manual(values=c('mecosta'="firebrick", 'isabella'="dodgerblue", 'ottawa'="steelblue")) +
+  scale_fill_manual(legend, values=c('mecosta'="firebrick", 'isabella'="dodgerblue", 'ottawa'="steelblue")) +
   geom_bar(stat = "identity") +
   geom_ma(ma_fun = EMA, n = 5, wilder = TRUE, linetype = 1, size = 2) +
   geom_vline(xintercept = as.POSIXct(as.Date(c("2020-07-04", "2020-08-17", "2020-08-31"))), linetype=4) +
   facet_grid(rows=vars(County)) +
   ylim(0,30) +
+  theme_bw() +
+  theme(legend.position="none")
+```
+
+```{r weekly_county_plot, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=7, fig.cap="**Figure 4:** A comparison of the number of total cases in Isabella, Mecosta, and Ottawa counties by week. The bars indicate total daily cases and the lines are four-week moving averages. ***Nota bene*** - the y axis scales are _not_ the same in this plot to accentuate any trends." }
+counties <- weekly %>% 
+  filter(County == "isabella" | County == "mecosta" | County == "ottawa")
+ggplot(counties, aes(x=Week, y=Weekly.Cases, color=County, fill=County)) +
+    scale_color_manual(values=c('mecosta'="firebrick", 'isabella'="dodgerblue", 'ottawa'="steelblue")) +
+  scale_fill_manual(legend, values=c('mecosta'="firebrick", 'isabella'="dodgerblue", 'ottawa'="steelblue")) +
+  geom_bar(stat = "identity") +
+  geom_ma(ma_fun = EMA, n = 4, wilder = TRUE, linetype = 1, size = 2) +
+  facet_grid(rows=vars(County), scales="free_y") +
+#  ylim(0,30) +
   theme_bw() +
   theme(legend.position="none")
 ```
