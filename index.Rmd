@@ -22,7 +22,7 @@ library(tadaatoolbox)
 ```{r data, echo=FALSE, message=FALSE, warning=FALSE}
 
 # Load COVID-19 case data from Michigan state site
-download.file("https://www.michigan.gov/documents/coronavirus/Cases_and_Deaths_by_County_and_Date_2020-09-05_701510_7.xlsx", destfile="./rawData/Cases_by_County_and_Date.xlsx")
+download.file("https://www.michigan.gov/documents/coronavirus/Cases_by_County_and_Date_2020-09-07_701516_7.xlsx", destfile="./rawData/Cases_by_County_and_Date.xlsx")
 
 michiganData <- read_xlsx("./rawData/Cases_by_County_and_Date.xlsx")
 
@@ -248,12 +248,12 @@ ggplot(counties, aes(x=Date, y=Cases, color=County, fill=County)) +
   geom_ma(ma_fun = EMA, n = 5, wilder = TRUE, linetype = 1, size = 2) +
   geom_vline(xintercept = as.POSIXct(as.Date(c("2020-07-04", "2020-08-17", "2020-08-31"))), linetype=4) +
   facet_grid(rows=vars(County)) +
-  ylim(0,30) +
+  ylim(0,80) +
   theme_bw() +
   theme(legend.position="none")
 ```
 
-```{r weekly_county_plot, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=7, fig.cap="**Figure 4:** A comparison of the number of total cases in Isabella, Mecosta, and Ottawa counties by week. The bars indicate total daily cases and the lines are four-week moving averages. ***Nota bene*** - the y axis scales are _not_ the same in this plot to accentuate any trends." }
+```{r weekly_county_plot, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=7, fig.cap="**Figure 5:** A comparison of the number of total cases in Isabella, Mecosta, and Ottawa counties by week. The bars indicate total daily cases and the lines are four-week moving averages." }
 counties <- weekly %>% 
   filter(County == "isabella" | County == "mecosta" | County == "ottawa")
 ggplot(counties, aes(x=Week, y=Weekly.Cases, color=County, fill=County)) +
@@ -261,13 +261,23 @@ ggplot(counties, aes(x=Week, y=Weekly.Cases, color=County, fill=County)) +
   scale_fill_manual(legend, values=c('mecosta'="firebrick", 'isabella'="dodgerblue", 'ottawa'="steelblue")) +
   geom_bar(stat = "identity") +
   geom_ma(ma_fun = EMA, n = 4, wilder = TRUE, linetype = 1, size = 2) +
-  facet_grid(rows=vars(County), scales="free_y") +
-#  ylim(0,30) +
+  facet_grid(rows=vars(County)) +
   theme_bw() +
   theme(legend.position="none")
 ```
 
-CMU students went back to school earlier than Ferris students. It appears that this influx of students (and increased testing on campus) resulted in a spike of cases. It will be interesting to see how big of a spike Mecosta county experiences over the next few weeks.
+CMU students went back to school earlier than Ferris students. It appears that this influx of students (and increased testing on campus) resulted in a spike of cases. It will be interesting to see how big of a spike Mecosta county experiences over the next few weeks. CMU is twice as large as Ferris, but has 10-times more COVID-19 cases. This probably reflects the fact that they recruit more strongly from counties with a higher endemic COVID-19 rate (near Detroit). Ferris, on the other hand, is primarily a regional institution and the counties that it draws most of its students from have lower overall COVID-19 infection rates. This is one time when living in the sticks has tangible upsides. Here is Ferris by itself to expand the y-axis a little bit.
+
+```{r ferris_plot, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=7, fig.cap="**Figure 6:** Mecosta caes (which includes Ferris State University). The bars indicate total daily cases and the lines are five-day moving averages. The vertical lines indicate the fourth of July, FSU opening on August 31st, and Labor Day."}
+counties <- michiganTotalData %>% 
+  filter(County == "mecosta")
+ggplot(counties, aes(x=Date, y=Cases, color="firebrick", fill="firebrick")) +
+  geom_bar(stat = "identity") +
+  geom_ma(ma_fun = EMA, n = 5, wilder = TRUE, linetype = 1, size = 2) +
+  geom_vline(xintercept = as.POSIXct(as.Date(c("2020-07-04","2020-08-31", "2020-09-07"))), linetype=4) +
+  theme_bw() +
+  theme(legend.position="none")
+```
 
 ## Conclusions  
 
