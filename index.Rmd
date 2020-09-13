@@ -286,7 +286,7 @@ For comparision sake, here are the numbers of positive COVID-19 cases being repo
 ```{r dashboard, echo=FALSE, comment=FALSE, error=FALSE, warning=FALSE}
 dates <- c("Aug. 24", "Aug. 31", "Sep. 07")
 week1 <- as.integer(michiganTotalData %>%  filter(County == "mecosta", Date >= "2020-08-24" & Date <= "2020-08-27") %>% summarize(sum(Cases)))
-week2 <- as.integer(michiganTotalData %>%  filter(County == "mecosta", Date >= "2020-08-28" & Date <= "2020-09-23") %>% summarize(sum(Cases)))
+week2 <- as.integer(michiganTotalData %>%  filter(County == "mecosta", Date >= "2020-08-28" & Date <= "2020-09-03") %>% summarize(sum(Cases)))
 week3 <- as.integer(michiganTotalData %>%  filter(County == "mecosta", Date >= "2020-09-04" & Date <= "2020-09-10") %>% summarize(sum(Cases)))
 ferris <- c(4,19,34)
 mecosta <- c(week1,week2,week3)
