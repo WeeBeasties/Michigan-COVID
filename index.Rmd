@@ -22,7 +22,7 @@ library(tadaatoolbox)
 ```{r data, echo=FALSE, message=FALSE, warning=FALSE}
 
 # Load COVID-19 case data from Michigan state site
-download.file("https://www.michigan.gov/documents/coronavirus/Cases_by_County_and_Date_2020-09-07_701516_7.xlsx", destfile="./rawData/Cases_by_County_and_Date.xlsx")
+download.file("https://www.michigan.gov/documents/coronavirus/Cases_by_County_and_Date_2020-09-12_702144_7.xlsx", destfile="./rawData/Cases_by_County_and_Date.xlsx")
 
 michiganData <- read_xlsx("./rawData/Cases_by_County_and_Date.xlsx")
 
@@ -126,12 +126,12 @@ metroDataNorm <- michiganTotalData %>%
   summarize(Cases = max(Cases.Cumulative)/pop2018*100000, Deaths = max(Deaths.Cumulative)/pop2018*100000, Metro = Metro)
 metroDataNorm <- unique(metroDataNorm)
 
-weekly <- michiganTotalData %>% group_by(County, Week = week(Date)) %>% summarise(Weekly.Cases = sum(Cases), Weekly.Deaths = sum(Deaths))
+weekly <- michiganTotalData %>% group_by(County, Week = week(Date)) %>% summarise(Weekly.Cases = sum(Cases), Weekly.Deaths = sum(Deaths), Case.Mortality=Weekly.Deaths/Weekly.Cases*100)
 
 ```
 
 ## Abstract  
-This is an exploratory analysis of some COVID-19 trends in Michigan that interest me. I strongly suspect that the vast majority of cases and adverse outcomes are concentrated in the Detroit area. Our response as a state, however, has not really been defined geographically. This is probably not the best way to steward our limited resources (note for future microbial pandemics). I am also keenly interested in the impact that reopening college campuses will have on the overall trajectory of COVID-19 incidence in our region.
+This is an exploratory analysis of some COVID-19 trends in Michigan that interest me. I strongly suspect that the vast majority of cases and adverse outcomes are concentrated in the Detroit area. Our response as a state, however, has not really been defined geographically. This is probably not the best way to steward our limited resources (note for future microbial pandemics). I am also keenly interested in the impact that reopening college campuses will have on the overall trajectory of COVID-19 incidence in our region. You can [view this report](https://reproducibleassessment.com/Michigan-COVID/index.html) online. The data and all analyses performed can be accessed on [my GitHub repo](https://www.github.com/WeeBeasties/Michigan-COVID). Feel free to fork and use my repo.
 
 ## Data  
 One should always be a bit skeptical of analyses with pretty graphs and figures. It is important to know what data were used, how they were manipulated, and also the trustworthyness of the data sources. TheMichigan COVID-19 data for this document were obtained at https://www.michigan.gov/coronavirus/0,9753,7-406-98163_98173---,00.html in the Public Use Datasets called "Cases by County and Date". Michigan county populations were found at https://worldpopulationreview.com/us-counties/states/mi which gives the 2018 census numbers. These were the most recent reliable numbers that I could find at the moment.
@@ -146,7 +146,7 @@ GIS information was left-joined onto the total data. The census data was also le
 ## Statewide distribution   
 Many websites report COVID-19 cases or deaths in Michigan using county maps. The Michigan state map can be found [here](https://www.michigan.gov/coronavirus/0,9753,7-406-98163_98173---,00.html). This representation can be a little misleading, though. One might assume that the intensity of the colors is proportional to the number of cases or deaths - this is not necessarily true. If you examine the legends you will notice that the color bins are not necessarily spaced out evenly. Figure 1 shows the total number of cases and deaths by county in Michigan using a linear color scale.
 
-```{r state_map1, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=14, fig.cap="**Figure 1:** State-wide distribution of COVID-19. Panel A shows total cases, while panel B shows total deaths."}
+```{r state_map1, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=12, fig.cap="**Figure 1:** State-wide distribution of COVID-19. Panel A shows total cases, while panel B shows total deaths."}
 mapDataA <- michiganTotalData %>% 
   group_by(Region) %>% 
   rename(region = Region) %>% 
@@ -179,7 +179,7 @@ The three-county metropolitan Detroit area accounted for `r format(dataTable$Tot
 
 But wait, you say, don't most people live in those counties? Well... not _most_, but quite a few; let's normalize the cases and deaths by county population and try that again.
 
-```{r state_map2, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=14, fig.cap="**Figure 2:** State-wide distribution of COVID-19 normalized for county population. Panel A shows total cases per 100,000 people, while panel B shows total deaths per 100,000 people."}
+```{r state_map2, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=12, fig.cap="**Figure 2:** State-wide distribution of COVID-19 normalized for county population. Panel A shows total cases per 100,000 people, while panel B shows total deaths per 100,000 people."}
 mapDataC <- michiganTotalData %>% 
   group_by(Region) %>% 
   rename(region = Region) %>% 
@@ -212,12 +212,12 @@ After normalizing for county population, metropolitan Detroit counties average `
 
 Since the Detroit metropolitan area seems to be hit harder than the rest of the state, I wondered what the trends of cases and deaths looked like over time. Figure 3 shows the trends of total cases and deaths along with a five-day moving average of each. 
 
-```{r Detroit_plot, echo=FALSE, message=FALSE, warning=FALSE, fig.width=10, fig.height=10, fig.cap="**Figure 3:** A comparison of COVID-19 incidence between metropolitan Detroit (red) and the rest of Michigan (blue). Five-day moving averages of the data are shown as dotted lines."}
+```{r Detroit_plot, echo=FALSE, message=FALSE, warning=FALSE, fig.width=10, fig.height=10, fig.cap="**Figure 3:** A comparison of COVID-19 incidence between metropolitan Detroit (red) and the rest of Michigan (blue). Seven-day moving averages of the data are shown as dotted lines."}
 plotA <- ggplot(compareDetroit, aes(x=Date, y=Cases, color=County)) +
   geom_line() +
   ylim(0,1500) +
   scale_colour_manual(values=c('Metro Detroit'="firebrick", 'Not Detroit'="dodgerblue")) +
-  geom_ma(ma_fun = EMA, n = 5, wilder = TRUE, linetype = 3, size = 1.25) +
+  geom_ma(ma_fun = EMA, n = 7, wilder = TRUE, linetype = 3, size = 1.25) +
   theme_bw() +
   theme(legend.position = "none")
 
@@ -225,7 +225,7 @@ plotB <- ggplot(compareDetroit, aes(x=Date, y=Deaths, color=County)) +
   geom_line() +
   ylim(0,150) +
   scale_colour_manual(values=c('Metro Detroit'="firebrick", 'Not Detroit'="dodgerblue")) +
-  geom_ma(ma_fun = EMA, n = 5, wilder = TRUE, linetype = 3, size = 1.25) +
+  geom_ma(ma_fun = EMA, n = 7, wilder = TRUE, linetype = 3, size = 1.25) +
   theme_bw() +
   theme(legend.position = "none")
 
@@ -238,17 +238,17 @@ The intial spike of COVID-19 cases appears to have spiked around the beginning o
 
 Finally, I am also interested in comparing how Ferris State University does in controlling COVID-19 compared to Central Michigan University and Grand Valley State University. Figure 4 compares the total number of COVID-19 cases between those three counties.
 
-```{r county_plot, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=7, fig.cap="**Figure 4:** A comparison of the number of total cases in Isabella, Mecosta, and Ottawa counties. The bars indicate total daily cases and the lines are five-day moving averages. The vertical lines indicate the fourth of July, CMU opening on August 17th, and GVSU and FSU opening on August 31st."}
+```{r county_plot, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=7, fig.cap="**Figure 4:** A comparison of the number of total cases in Isabella, Mecosta, and Ottawa counties. The bars indicate total daily cases and the lines are seven-day moving averages. The vertical lines indicate the fourth of July, CMU opening on August 17th, and GVSU and FSU opening on August 31st."}
 counties <- michiganTotalData %>% 
   filter(County == "isabella" | County == "mecosta" | County == "ottawa")
 ggplot(counties, aes(x=Date, y=Cases, color=County, fill=County)) +
   scale_color_manual(values=c('mecosta'="firebrick", 'isabella'="dodgerblue", 'ottawa'="steelblue")) +
   scale_fill_manual(legend, values=c('mecosta'="firebrick", 'isabella'="dodgerblue", 'ottawa'="steelblue")) +
   geom_bar(stat = "identity") +
-  geom_ma(ma_fun = EMA, n = 5, wilder = TRUE, linetype = 1, size = 2) +
+  geom_ma(ma_fun = EMA, n = 7, wilder = TRUE, linetype = 1, size = 2) +
   geom_vline(xintercept = as.POSIXct(as.Date(c("2020-07-04", "2020-08-17", "2020-08-31"))), linetype=4) +
   facet_grid(rows=vars(County)) +
-  ylim(0,80) +
+  ylim(0,100) +
   theme_bw() +
   theme(legend.position="none")
 ```
@@ -268,13 +268,36 @@ ggplot(counties, aes(x=Week, y=Weekly.Cases, color=County, fill=County)) +
 
 CMU students went back to school earlier than Ferris students. It appears that this influx of students (and increased testing on campus) resulted in a spike of cases. It will be interesting to see how big of a spike Mecosta county experiences over the next few weeks. CMU is twice as large as Ferris, but has 10-times more COVID-19 cases. This probably reflects the fact that they recruit more strongly from counties with a higher endemic COVID-19 rate (near Detroit). Ferris, on the other hand, is primarily a regional institution and the counties that it draws most of its students from have lower overall COVID-19 infection rates. This is one time when living in the sticks has tangible upsides. Here is Ferris by itself to expand the y-axis a little bit.
 
-```{r ferris_plot, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=7, fig.cap="**Figure 6:** Mecosta caes (which includes Ferris State University). The bars indicate total daily cases and the lines are five-day moving averages. The vertical lines indicate the fourth of July, FSU opening on August 31st, and Labor Day."}
+```{r ferris_plot, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=7, fig.cap="**Figure 6:** Mecosta caes (which includes Ferris State University). The bars indicate total daily cases and the lines are seven-day moving averages. The vertical lines indicate the fourth of July, FSU opening on August 31st, and Labor Day."}
 counties <- michiganTotalData %>% 
   filter(County == "mecosta")
-ggplot(counties, aes(x=Date, y=Cases, color="firebrick", fill="firebrick")) +
+ggplot(counties, aes(x=Date, y=Cases, color=County, fill=County)) +
+  scale_color_manual(values=c('mecosta'="firebrick", 'isabella'="dodgerblue", 'ottawa'="steelblue")) +
+  scale_fill_manual(legend, values=c('mecosta'="firebrick", 'isabella'="dodgerblue", 'ottawa'="steelblue")) +
+  ylim(0,12) +
   geom_bar(stat = "identity") +
-  geom_ma(ma_fun = EMA, n = 5, wilder = TRUE, linetype = 1, size = 2) +
+  geom_ma(ma_fun = EMA, n = 7, wilder = TRUE, linetype = 1, size = 2) +
   geom_vline(xintercept = as.POSIXct(as.Date(c("2020-07-04","2020-08-31", "2020-09-07"))), linetype=4) +
+  theme_bw() +
+  theme(legend.position="none")
+```
+
+For comparision sake, here are the numbers of positive COVID-19 cases being reported on the [Ferris COVID dashboard page](https://www.ferris.edu/HTMLS/news/coronavirus/covid-19-dashboard.htm).
+```{r dashboard, echo=FALSE, comment=FALSE, error=FALSE, warning=FALSE}
+dates <- c("Aug. 24", "Aug. 31", "Sep. 07")
+week1 <- as.integer(michiganTotalData %>%  filter(County == "mecosta", Date >= "2020-08-24" & Date <= "2020-08-27") %>% summarize(sum(Cases)))
+week2 <- as.integer(michiganTotalData %>%  filter(County == "mecosta", Date >= "2020-08-28" & Date <= "2020-09-23") %>% summarize(sum(Cases)))
+week3 <- as.integer(michiganTotalData %>%  filter(County == "mecosta", Date >= "2020-09-04" & Date <= "2020-09-10") %>% summarize(sum(Cases)))
+ferris <- c(4,19,34)
+mecosta <- c(week1,week2,week3)
+dataSet <- tibble(Date = dates, Ferris = ferris, Mecosta = mecosta) 
+
+plotData <- dataSet %>%
+  pivot_longer(!Date, names_to = "Source", values_to = "Cases")
+
+ggplot(plotData, aes(x=Date, y=Cases, fill=Source)) +
+  geom_bar(stat='identity', position='dodge') +
+  scale_fill_manual(values=c("firebrick","gold")) +
   theme_bw() +
   theme(legend.position="none")
 ```
