@@ -91,7 +91,7 @@ write_csv(michiganProbableData, "./processedData/michiganProbableData.csv")
 # Add confirmed and probable cases to get total cases
 michiganTotalData <- tibble(County = michiganConfirmedData$County, Date = michiganConfirmedData$Date, Status = "Total", Cases = michiganConfirmedData$Cases + michiganProbableData$Cases, Deaths = michiganConfirmedData$Deaths + michiganProbableData$Deaths, Cases.Cumulative = michiganConfirmedData$Cases.Cumulative + michiganProbableData$Cases.Cumulative, Deaths.Cumulative = michiganConfirmedData$Deaths.Cumulative + michiganProbableData$Deaths.Cumulative, Updated = michiganConfirmedData$Updated, Region = michiganConfirmedData$region, County.FIPS.Character = michiganConfirmedData$county.fips.character, State.Name = michiganConfirmedData$state.name, State.FIPS.Character = michiganConfirmedData$state.fips.character, State.Abb = michiganConfirmedData$state.abb, pop2018 = michiganConfirmedData$pop2018, GrowthRate = michiganConfirmedData$GrowthRate, Density = michiganConfirmedData$Density)
 metroCounty <- c("macomb", "oakland", "wayne")
-michiganTotalData$Metro <- ifelse(michiganTotalData$County %in% metroCounty, "Yes", "No")
+michiganTotalData$Detroit <- ifelse(michiganTotalData$County %in% metroCounty, "Yes", "No")
 
 write_csv(michiganTotalData, "./processedData/michiganTotalData.csv")
 
@@ -100,7 +100,7 @@ metroDetroit <- michiganTotalData %>%
   filter(County == "wayne" | County == "oakland" | County == "macomb") %>% 
   group_by(Date) %>% 
   mutate(Cases = sum(Cases), Deaths = sum(Deaths), Cases.Cumulative = sum(Cases.Cumulative), Deaths.Cumulative = sum(Deaths.Cumulative))
-metroDetroit <- metroDetroit[1:168, ]
+metroDetroit <- metroDetroit %>% filter(County == "wayne")
 metroDetroit$County <- "Metro Detroit"
 write_csv(metroDetroit, "./processedData/metroDetroit.csv")
 
@@ -109,7 +109,7 @@ notDetroit <- michiganTotalData %>%
   filter(County != "wayne" & County != "oakland" & County != "macomb") %>% 
   group_by(Date) %>% 
   mutate(Cases = sum(Cases), Deaths = sum(Deaths), Cases.Cumulative = sum(Cases.Cumulative), Deaths.Cumulative = sum(Deaths.Cumulative))
-notDetroit <- notDetroit[1:168, ]
+notDetroit <- notDetroit %>% filter(County == "mecosta")
 notDetroit$County <- "Not Detroit"
 write_csv(notDetroit, "./processedData/notDetroit.csv")
 
@@ -118,12 +118,12 @@ compareDetroit <- rbind(metroDetroit, notDetroit)
 
 metroDataCount <- michiganTotalData %>% 
   group_by(County) %>% 
-  summarize(Cases = max(Cases.Cumulative), Deaths = max(Deaths.Cumulative), Metro = Metro)
+  summarize(Cases = max(Cases.Cumulative), Deaths = max(Deaths.Cumulative), Detroit = Detroit)
 metroDataCount <- unique(metroDataCount)
 
 metroDataNorm <- michiganTotalData %>% 
   group_by(County) %>% 
-  summarize(Cases = max(Cases.Cumulative)/pop2018*100000, Deaths = max(Deaths.Cumulative)/pop2018*100000, Metro = Metro)
+  summarize(Cases = max(Cases.Cumulative)/pop2018*100000, Deaths = max(Deaths.Cumulative)/pop2018*100000, Detroit = Detroit)
 metroDataNorm <- unique(metroDataNorm)
 
 weekly <- michiganTotalData %>% group_by(County, Week = week(Date)) %>% summarise(Weekly.Cases = sum(Cases), Weekly.Deaths = sum(Deaths), Case.Mortality=Weekly.Deaths/Weekly.Cases*100)
@@ -170,7 +170,7 @@ As expected, the metropolitan Detroit tri-county (Wayne, Oakland, and Macomb) ar
 
 ```{r countTable, echo=FALSE, message=FALSE, warning=FALSE}
 dataTable <- metroDataCount %>% 
-  group_by(Metro) %>% 
+  group_by(Detroit) %>% 
   summarize(Total.Cases = sum(Cases), Total.Deaths = sum(Deaths))
 knitr::kable(dataTable, format.args = list(big.mark = ",", digits = 1), caption = "**Table1:** Total number of COVID-19 cases and deaths in metopolitan Detroit (Wayne, Oakland, and Macomb counties) vs all other Michigan counties combined.")
 ```
@@ -201,10 +201,10 @@ Ok, so Figure 2 shows that when adjusting for population the number of cases is 
 
 ```{r norm_table, echo=FALSE, message=FALSE, warning=FALSE}
 normDataTable <- metroDataNorm %>% 
-  group_by(Metro) %>% 
+  group_by(Detroit) %>% 
   summarize(Mean.Cases = mean(Cases), SD.Cases = sd(Cases), Mean.Deaths = mean(Deaths), SD.Deaths = sd(Deaths))
 knitr::kable(normDataTable, format.args = list(big.mark = ",", digits = 2), caption = "**Table2:** Total number of COVID-19 cases and deaths per 100,000 people in metopolitan Detroit (Wayne, Oakland, and Macomb counties) vs all other Michigan counties combined.")
-my_t.test <- t.test(Deaths~Metro, data=metroDataNorm)
+my_t.test <- t.test(Deaths~Detroit, data=metroDataNorm)
 ```
 After normalizing for county population, metropolitan Detroit counties average `r round(normDataTable[2,2]/normDataTable[1,2],1)`-times more COVID-19 cases and `r round(normDataTable[2,4]/normDataTable[1,4],1)`-times more COVID-19 deaths than the rest of Michigan counties. On average, metropolitan Detroit (m = `r round(my_t.test$estimate[2],1)`) experienced significantly higher rates of COVID-19 deaths per 100,000 people than the rest of the state (m = `r round(my_t.test$estimate[1],1)`), *t*(`r round(my_t.test$parameter[1],2)`) = `r round(my_t.test$statistic[1],2)`, *p* < `r round(my_t.test$p.value,3)`.
 
@@ -285,7 +285,8 @@ ggplot(counties, aes(x=Date, y=Cases, color=County, fill=County)) +
 ```
 
 For comparision sake, here are the numbers of positive COVID-19 cases being reported on the [Ferris COVID dashboard page](https://www.ferris.edu/HTMLS/news/coronavirus/covid-19-dashboard.htm).
-```{r dashboard, echo=FALSE, comment=FALSE, error=FALSE, warning=FALSE, fig.width=12, fig.height=7, fig.cap="**Figure 7:** Total number of COVID-19 cases. Ferris reports its numbers every Thursday and began collecting data on August 21. The stqte-reported numbers for Mecosta county are shown for the same intervals."}
+
+```{r dashboard, echo=FALSE, comment=FALSE, error=FALSE, warning=FALSE, fig.width=12, fig.height=7, fig.cap="**Figure 7:** Total number of COVID-19 cases. Ferris reports its numbers every Thursday and began collecting data on August 21. The state-reported numbers for Mecosta county are shown for the same intervals."}
 dates <- c("Aug. 24*", "Aug. 31", "Sep. 07")
 week1 <- as.integer(michiganTotalData %>%  filter(County == "mecosta", Date >= "2020-08-24" & Date <= "2020-08-27") %>% summarize(sum(Cases)))
 week2 <- as.integer(michiganTotalData %>%  filter(County == "mecosta", Date >= "2020-08-28" & Date <= "2020-09-03") %>% summarize(sum(Cases)))

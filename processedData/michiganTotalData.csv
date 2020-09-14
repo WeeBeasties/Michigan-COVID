@@ -1,4 +1,4 @@
-County,Date,Status,Cases,Deaths,Cases.Cumulative,Deaths.Cumulative,Updated,Region,County.FIPS.Character,State.Name,State.FIPS.Character,State.Abb,pop2018,GrowthRate,Density,Metro
+County,Date,Status,Cases,Deaths,Cases.Cumulative,Deaths.Cumulative,Updated,Region,County.FIPS.Character,State.Name,State.FIPS.Character,State.Abb,pop2018,GrowthRate,Density,Detroit
 alcona,2020-03-01T00:00:00Z,Total,0,0,0,0,2020-09-12T13:36:42Z,26001,26001,michigan,26,MI,10362,-4.7348,16.2,No
 alcona,2020-03-02T00:00:00Z,Total,0,0,0,0,2020-09-12T13:36:42Z,26001,26001,michigan,26,MI,10362,-4.7348,16.2,No
 alcona,2020-03-03T00:00:00Z,Total,0,0,0,0,2020-09-12T13:36:42Z,26001,26001,michigan,26,MI,10362,-4.7348,16.2,No
