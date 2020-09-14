@@ -212,12 +212,13 @@ After normalizing for county population, metropolitan Detroit counties average `
 
 Since the Detroit metropolitan area seems to be hit harder than the rest of the state, I wondered what the trends of cases and deaths looked like over time. Figure 3 shows the trends of total cases and deaths along with a five-day moving average of each. 
 
-```{r Detroit_plot, echo=FALSE, message=FALSE, warning=FALSE, fig.width=10, fig.height=10, fig.cap="**Figure 3:** A comparison of COVID-19 incidence between metropolitan Detroit (red) and the rest of Michigan (blue). Seven-day moving averages of the data are shown as dotted lines."}
+```{r Detroit_plot, echo=FALSE, message=FALSE, warning=FALSE, fig.width=10, fig.height=10, fig.cap="**Figure 3:** A comparison of COVID-19 incidence between metropolitan Detroit (red) and the rest of Michigan (blue). Seven-day moving averages of the data are shown as dotted lines. The veritcal lines denote holidays: The 4th of July and Labor Day on September 7th."}
 plotA <- ggplot(compareDetroit, aes(x=Date, y=Cases, color=County)) +
   geom_line() +
   ylim(0,1500) +
   scale_colour_manual(values=c('Metro Detroit'="firebrick", 'Not Detroit'="dodgerblue")) +
   geom_ma(ma_fun = EMA, n = 7, wilder = TRUE, linetype = 3, size = 1.25) +
+  geom_vline(xintercept = as.POSIXct(as.Date(c("2020-07-04", "2020-09-07"))), linetype=4) +
   theme_bw() +
   theme(legend.position = "none")
 
@@ -226,6 +227,7 @@ plotB <- ggplot(compareDetroit, aes(x=Date, y=Deaths, color=County)) +
   ylim(0,150) +
   scale_colour_manual(values=c('Metro Detroit'="firebrick", 'Not Detroit'="dodgerblue")) +
   geom_ma(ma_fun = EMA, n = 7, wilder = TRUE, linetype = 3, size = 1.25) +
+  geom_vline(xintercept = as.POSIXct(as.Date(c("2020-07-04", "2020-09-07"))), linetype=4) +
   theme_bw() +
   theme(legend.position = "none")
 
@@ -238,7 +240,7 @@ The intial spike of COVID-19 cases appears to have spiked around the beginning o
 
 Finally, I am also interested in comparing how Ferris State University does in controlling COVID-19 compared to Central Michigan University and Grand Valley State University. Figure 4 compares the total number of COVID-19 cases between those three counties.
 
-```{r county_plot, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=7, fig.cap="**Figure 4:** A comparison of the number of total cases in Isabella, Mecosta, and Ottawa counties. The bars indicate total daily cases and the lines are seven-day moving averages. The vertical lines indicate the fourth of July, CMU opening on August 17th, and GVSU and FSU opening on August 31st."}
+```{r county_plot, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=7, fig.cap="**Figure 4:** A comparison of the number of total cases in Isabella, Mecosta, and Ottawa counties. The bars indicate total daily cases and the lines are seven-day moving averages. The vertical lines indicate the fourth of July, CMU opening on August 17th, and GVSU and FSU opening on August 31st, and Labor Day on September 7th."}
 counties <- michiganTotalData %>% 
   filter(County == "isabella" | County == "mecosta" | County == "ottawa")
 ggplot(counties, aes(x=Date, y=Cases, color=County, fill=County)) +
@@ -246,7 +248,7 @@ ggplot(counties, aes(x=Date, y=Cases, color=County, fill=County)) +
   scale_fill_manual(legend, values=c('mecosta'="firebrick", 'isabella'="dodgerblue", 'ottawa'="steelblue")) +
   geom_bar(stat = "identity") +
   geom_ma(ma_fun = EMA, n = 7, wilder = TRUE, linetype = 1, size = 2) +
-  geom_vline(xintercept = as.POSIXct(as.Date(c("2020-07-04", "2020-08-17", "2020-08-31"))), linetype=4) +
+  geom_vline(xintercept = as.POSIXct(as.Date(c("2020-07-04", "2020-08-17", "2020-08-31", "2020-09-07"))), linetype=4) +
   facet_grid(rows=vars(County)) +
   ylim(0,100) +
   theme_bw() +
@@ -268,7 +270,7 @@ ggplot(counties, aes(x=Week, y=Weekly.Cases, color=County, fill=County)) +
 
 CMU students went back to school earlier than Ferris students. It appears that this influx of students (and increased testing on campus) resulted in a spike of cases. It will be interesting to see how big of a spike Mecosta county experiences over the next few weeks. CMU is twice as large as Ferris, but has 10-times more COVID-19 cases. This probably reflects the fact that they recruit more strongly from counties with a higher endemic COVID-19 rate (near Detroit). Ferris, on the other hand, is primarily a regional institution and the counties that it draws most of its students from have lower overall COVID-19 infection rates. This is one time when living in the sticks has tangible upsides. Here is Ferris by itself to expand the y-axis a little bit.
 
-```{r ferris_plot, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=7, fig.cap="**Figure 6:** Mecosta caes (which includes Ferris State University). The bars indicate total daily cases and the lines are seven-day moving averages. The vertical lines indicate the fourth of July, FSU opening on August 31st, and Labor Day."}
+```{r ferris_plot, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=7, fig.cap="**Figure 6:** Mecosta cases (which includes Ferris State University). The bars indicate total daily cases and the lines are seven-day moving averages. The vertical lines indicate the fourth of July, FSU opening on August 31st, and Labor Day."}
 counties <- michiganTotalData %>% 
   filter(County == "mecosta")
 ggplot(counties, aes(x=Date, y=Cases, color=County, fill=County)) +
@@ -283,8 +285,8 @@ ggplot(counties, aes(x=Date, y=Cases, color=County, fill=County)) +
 ```
 
 For comparision sake, here are the numbers of positive COVID-19 cases being reported on the [Ferris COVID dashboard page](https://www.ferris.edu/HTMLS/news/coronavirus/covid-19-dashboard.htm).
-```{r dashboard, echo=FALSE, comment=FALSE, error=FALSE, warning=FALSE}
-dates <- c("Aug. 24", "Aug. 31", "Sep. 07")
+```{r dashboard, echo=FALSE, comment=FALSE, error=FALSE, warning=FALSE, fig.width=12, fig.height=7, fig.cap="**Figure 7:** Total number of COVID-19 cases. Ferris reports its numbers every Thursday and began collecting data on August 21. The stqte-reported numbers for Mecosta county are shown for the same intervals."}
+dates <- c("Aug. 24*", "Aug. 31", "Sep. 07")
 week1 <- as.integer(michiganTotalData %>%  filter(County == "mecosta", Date >= "2020-08-24" & Date <= "2020-08-27") %>% summarize(sum(Cases)))
 week2 <- as.integer(michiganTotalData %>%  filter(County == "mecosta", Date >= "2020-08-28" & Date <= "2020-09-03") %>% summarize(sum(Cases)))
 week3 <- as.integer(michiganTotalData %>%  filter(County == "mecosta", Date >= "2020-09-04" & Date <= "2020-09-10") %>% summarize(sum(Cases)))
@@ -296,11 +298,12 @@ plotData <- dataSet %>%
   pivot_longer(!Date, names_to = "Source", values_to = "Cases")
 
 ggplot(plotData, aes(x=Date, y=Cases, fill=Source)) +
-  geom_bar(stat='identity', position='dodge') +
+  geom_bar(stat='identity', position='dodge', color='black') +
   scale_fill_manual(values=c("firebrick","gold")) +
-  theme_bw() +
-  theme(legend.position="none")
+  theme_bw()
 ```
+
+As of September 3, Ferris State accounts for the vast majority of all reported cases in Mecosta county. There does not yet appear to be a community-associated outbreak at this point. We will see if the numbers now begin to decline or if COVID-19 moves from campus out into the general population.
 
 ## Conclusions  
 
