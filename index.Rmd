@@ -22,7 +22,7 @@ library(tadaatoolbox)
 ```{r data, echo=FALSE, message=FALSE, warning=FALSE}
 
 # Load COVID-19 case data from Michigan state site
-download.file("https://www.michigan.gov/documents/coronavirus/Cases_by_County_and_Date_2020-09-12_702144_7.xlsx", destfile="./rawData/Cases_by_County_and_Date.xlsx")
+download.file("https://www.michigan.gov/documents/coronavirus/Cases_and_Deaths_by_County_and_Date_2020-09-14_702246_7.xlsx", destfile="./rawData/Cases_by_County_and_Date.xlsx")
 
 michiganData <- read_xlsx("./rawData/Cases_by_County_and_Date.xlsx")
 
@@ -134,7 +134,7 @@ weekly <- michiganTotalData %>% group_by(County, Week = week(Date)) %>% summaris
 This is an exploratory analysis of some COVID-19 trends in Michigan that interest me. I strongly suspect that the vast majority of cases and adverse outcomes are concentrated in the Detroit area. Our response as a state, however, has not really been defined geographically. This is probably not the best way to steward our limited resources (note for future microbial pandemics). I am also keenly interested in the impact that reopening college campuses will have on the overall trajectory of COVID-19 incidence in our region. You can [view this report](https://reproducibleassessment.com/Michigan-COVID/index.html) online. The data and all analyses performed can be accessed on [my GitHub repo](https://www.github.com/WeeBeasties/Michigan-COVID). Feel free to fork and use my repo.
 
 ## Data  
-One should always be a bit skeptical of analyses with pretty graphs and figures. It is important to know what data were used, how they were manipulated, and also the trustworthyness of the data sources. TheMichigan COVID-19 data for this document were obtained at https://www.michigan.gov/coronavirus/0,9753,7-406-98163_98173---,00.html in the Public Use Datasets called "Cases by County and Date". The **September 12, 2020** dataset was used to create this report. Michigan county populations were found at https://worldpopulationreview.com/us-counties/states/mi which gives the 2018 census numbers. These were the most recent reliable numbers that I could find at the moment.
+One should always be a bit skeptical of analyses with pretty graphs and figures. It is important to know what data were used, how they were manipulated, and also the trustworthyness of the data sources. TheMichigan COVID-19 data for this document were obtained at https://www.michigan.gov/coronavirus/0,9753,7-406-98163_98173---,00.html in the Public Use Datasets called "Cases by County and Date". The **September 14, 2020** dataset was used to create this report. Michigan county populations were found at https://worldpopulationreview.com/us-counties/states/mi which gives the 2018 census numbers. These were the most recent reliable numbers that I could find at the moment.
 
 ## Data munging
 The Michigan COVID-19 dataset had a few peculiarities that I need to deal with in order to analyze it easily. There were several "counties" that are not actual Michigan counties that needed to be cleaned. The values for "Out-of-State" are not relevant for my purposes and were removed from the analyses. Likewise, prison populations ("FCI" and "MDOC") cannot be ascribed to particular counties and were, therefore, also removed. Cases with "Unknown" origins were also removed. Finally, the dataset lists "City of Detroit" as a separate entity, those numbers were added back into it's home country (Wayne) to facilitate analysis.
@@ -250,7 +250,6 @@ ggplot(counties, aes(x=Date, y=Cases, color=County, fill=County)) +
   geom_ma(ma_fun = EMA, n = 7, wilder = TRUE, linetype = 1, size = 2) +
   geom_vline(xintercept = as.POSIXct(as.Date(c("2020-07-04", "2020-08-17", "2020-08-31", "2020-09-07"))), linetype=4) +
   facet_grid(rows=vars(County)) +
-  ylim(0,100) +
   theme_bw() +
   theme(legend.position="none")
 ```
@@ -271,12 +270,11 @@ ggplot(counties, aes(x=Week, y=Weekly.Cases, color=County, fill=County)) +
 CMU students went back to school earlier than Ferris students. It appears that this influx of students (and increased testing on campus) resulted in a spike of cases. It will be interesting to see how big of a spike Mecosta county experiences over the next few weeks. CMU is twice as large as Ferris, but has 10-times more COVID-19 cases. This probably reflects the fact that they recruit more strongly from counties with a higher endemic COVID-19 rate (near Detroit). Ferris, on the other hand, is primarily a regional institution and the counties that it draws most of its students from have lower overall COVID-19 infection rates. This is one time when living in the sticks has tangible upsides. Here is Ferris by itself to expand the y-axis a little bit.
 
 ```{r ferris_plot, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=7, fig.cap="**Figure 6:** Mecosta cases (which includes Ferris State University). The bars indicate total daily cases and the lines are seven-day moving averages. The vertical lines indicate the fourth of July, FSU opening on August 31st, and Labor Day."}
-counties <- michiganTotalData %>% 
+mecosta_county <- michiganTotalData %>% 
   filter(County == "mecosta")
-ggplot(counties, aes(x=Date, y=Cases, color=County, fill=County)) +
+ggplot(mecosta_county, aes(x=Date, y=Cases, color=County, fill=County)) +
   scale_color_manual(values=c('mecosta'="firebrick", 'isabella'="dodgerblue", 'ottawa'="steelblue")) +
   scale_fill_manual(legend, values=c('mecosta'="firebrick", 'isabella'="dodgerblue", 'ottawa'="steelblue")) +
-  ylim(0,12) +
   geom_bar(stat = "identity") +
   geom_ma(ma_fun = EMA, n = 7, wilder = TRUE, linetype = 1, size = 2) +
   geom_vline(xintercept = as.POSIXct(as.Date(c("2020-07-04","2020-08-31", "2020-09-07"))), linetype=4) +
