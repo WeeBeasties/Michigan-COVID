@@ -22,7 +22,7 @@ library(tadaatoolbox)
 ```{r data, echo=FALSE, message=FALSE, warning=FALSE}
 
 # Load COVID-19 case data from Michigan state site
-download.file("https://www.michigan.gov/documents/coronavirus/Cases_and_Deaths_by_County_and_Date_2020-09-14_702246_7.xlsx", destfile="./rawData/Cases_by_County_and_Date.xlsx")
+download.file("https://www.michigan.gov/documents/coronavirus/Cases_by_County_and_Date_2020-09-15_702355_7.xlsx", destfile="./rawData/Cases_by_County_and_Date.xlsx")
 
 michiganData <- read_xlsx("./rawData/Cases_by_County_and_Date.xlsx")
 
@@ -113,8 +113,15 @@ notDetroit <- notDetroit %>% filter(County == "mecosta")
 notDetroit$County <- "Not Detroit"
 write_csv(notDetroit, "./processedData/notDetroit.csv")
 
+# Summarize total numbers for the entire state of Michigan
+total <- michiganTotalData %>% 
+  group_by(Date) %>% 
+  mutate(Cases = sum(Cases), Deaths = sum(Deaths), Cases.Cumulative = sum(Cases.Cumulative), Deaths.Cumulative = sum(Deaths.Cumulative))
+total$County <- "Total"
+write_csv(total, "./processedData/total.csv")
+
 # Create on comparison set
-compareDetroit <- rbind(metroDetroit, notDetroit)
+compareDetroit <- rbind(total, metroDetroit, notDetroit)
 
 metroDataCount <- michiganTotalData %>% 
   group_by(County) %>% 
@@ -134,7 +141,7 @@ weekly <- michiganTotalData %>% group_by(County, Week = week(Date)) %>% summaris
 This is an exploratory analysis of some COVID-19 trends in Michigan that interest me. I strongly suspect that the vast majority of cases and adverse outcomes are concentrated in the Detroit area. Our response as a state, however, has not really been defined geographically. This is probably not the best way to steward our limited resources (note for future microbial pandemics). I am also keenly interested in the impact that reopening college campuses will have on the overall trajectory of COVID-19 incidence in our region. You can [view this report](https://reproducibleassessment.com/Michigan-COVID/index.html) online. The data and all analyses performed can be accessed on [my GitHub repo](https://www.github.com/WeeBeasties/Michigan-COVID). Feel free to fork and use my repo.
 
 ## Data  
-One should always be a bit skeptical of analyses with pretty graphs and figures. It is important to know what data were used, how they were manipulated, and also the trustworthyness of the data sources. TheMichigan COVID-19 data for this document were obtained at https://www.michigan.gov/coronavirus/0,9753,7-406-98163_98173---,00.html in the Public Use Datasets called "Cases by County and Date". The **September 14, 2020** dataset was used to create this report. Michigan county populations were found at https://worldpopulationreview.com/us-counties/states/mi which gives the 2018 census numbers. These were the most recent reliable numbers that I could find at the moment.
+One should always be a bit skeptical of analyses with pretty graphs and figures. It is important to know what data were used, how they were manipulated, and also the trustworthyness of the data sources. TheMichigan COVID-19 data for this document were obtained at https://www.michigan.gov/coronavirus/0,9753,7-406-98163_98173---,00.html in the Public Use Datasets called "Cases by County and Date". The **September 15, 2020** dataset was used to create this report. Michigan county populations were found at https://worldpopulationreview.com/us-counties/states/mi which gives the 2018 census numbers. These were the most recent reliable numbers that I could find at the moment.
 
 ## Data munging
 The Michigan COVID-19 dataset had a few peculiarities that I need to deal with in order to analyze it easily. There were several "counties" that are not actual Michigan counties that needed to be cleaned. The values for "Out-of-State" are not relevant for my purposes and were removed from the analyses. Likewise, prison populations ("FCI" and "MDOC") cannot be ascribed to particular counties and were, therefore, also removed. Cases with "Unknown" origins were also removed. Finally, the dataset lists "City of Detroit" as a separate entity, those numbers were added back into it's home country (Wayne) to facilitate analysis.
@@ -212,11 +219,11 @@ After normalizing for county population, metropolitan Detroit counties average `
 
 Since the Detroit metropolitan area seems to be hit harder than the rest of the state, I wondered what the trends of cases and deaths looked like over time. Figure 3 shows the trends of total cases and deaths along with a five-day moving average of each. 
 
-```{r Detroit_plot, echo=FALSE, message=FALSE, warning=FALSE, fig.width=10, fig.height=10, fig.cap="**Figure 3:** A comparison of COVID-19 incidence between metropolitan Detroit (red) and the rest of Michigan (blue). Seven-day moving averages of the data are shown as dotted lines. The veritcal lines denote holidays: The 4th of July and Labor Day on September 7th."}
+```{r Detroit_plot, echo=FALSE, message=FALSE, warning=FALSE, fig.width=10, fig.height=10, fig.cap="**Figure 3:** A comparison of COVID-19 incidence between metropolitan Detroit (red) and the rest of Michigan (blue). The total state numbers are shown in green. Seven-day moving averages of the data are shown as dotted lines. The veritcal lines denote holidays: The 4th of July and Labor Day on September 7th."}
 plotA <- ggplot(compareDetroit, aes(x=Date, y=Cases, color=County)) +
   geom_line() +
-  ylim(0,1500) +
-  scale_colour_manual(values=c('Metro Detroit'="firebrick", 'Not Detroit'="dodgerblue")) +
+  ylim(0,1700) +
+  scale_colour_manual(values=c('Total'="#336600", 'Metro Detroit'="firebrick", 'Not Detroit'="dodgerblue")) +
   geom_ma(ma_fun = EMA, n = 7, wilder = TRUE, linetype = 3, size = 1.25) +
   geom_vline(xintercept = as.POSIXct(as.Date(c("2020-07-04", "2020-09-07"))), linetype=4) +
   theme_bw() +
@@ -224,8 +231,8 @@ plotA <- ggplot(compareDetroit, aes(x=Date, y=Cases, color=County)) +
 
 plotB <- ggplot(compareDetroit, aes(x=Date, y=Deaths, color=County)) +
   geom_line() +
-  ylim(0,150) +
-  scale_colour_manual(values=c('Metro Detroit'="firebrick", 'Not Detroit'="dodgerblue")) +
+  ylim(0,170) +
+  scale_colour_manual(values=c('Total'="#336600", 'Metro Detroit'="firebrick", 'Not Detroit'="dodgerblue")) +
   geom_ma(ma_fun = EMA, n = 7, wilder = TRUE, linetype = 3, size = 1.25) +
   geom_vline(xintercept = as.POSIXct(as.Date(c("2020-07-04", "2020-09-07"))), linetype=4) +
   theme_bw() +
@@ -285,7 +292,7 @@ ggplot(mecosta_county, aes(x=Date, y=Cases, color=County, fill=County)) +
 For comparision sake, here are the numbers of positive COVID-19 cases being reported on the [Ferris COVID dashboard page](https://www.ferris.edu/HTMLS/news/coronavirus/covid-19-dashboard.htm).
 
 ```{r dashboard, echo=FALSE, comment=FALSE, error=FALSE, warning=FALSE, fig.width=12, fig.height=7, fig.cap="**Figure 7:** Total number of COVID-19 cases. Ferris reports its numbers every Thursday and began collecting data on August 21. The state-reported numbers for Mecosta county are shown for the same intervals."}
-dates <- c("Aug. 24*", "Aug. 31", "Sep. 07")
+dates <- c("08/24-8/27", "08/28-09/03", "09/04-09/10")
 week1 <- as.integer(michiganTotalData %>%  filter(County == "mecosta", Date >= "2020-08-24" & Date <= "2020-08-27") %>% summarize(sum(Cases)))
 week2 <- as.integer(michiganTotalData %>%  filter(County == "mecosta", Date >= "2020-08-28" & Date <= "2020-09-03") %>% summarize(sum(Cases)))
 week3 <- as.integer(michiganTotalData %>%  filter(County == "mecosta", Date >= "2020-09-04" & Date <= "2020-09-10") %>% summarize(sum(Cases)))
@@ -308,7 +315,7 @@ As of September 3, Ferris State accounts for the vast majority of all reported c
 
 * COVID-19 cases and deaths are not uniformly distributed across the state.
 * Metopolitan Detroit accounts for over 58% of all COVID-19 cases and 75% of all deaths.
-* After adjusting for county population, metropolitan Detroit counties have over 3-times more cases and 7-times more deaths than other Michigan countiues.
+* After adjusting for county population, metropolitan Detroit counties have about 3-times more cases and 7-times more deaths than other Michigan countiues.
 * The difference between metropolitan Detroit and other counties is statistically significant.
 * The return of students to campus will coincide with an intial spike in COVID-19 cases. It will be interesting to see how well this spike can be controlled on campus.
 
