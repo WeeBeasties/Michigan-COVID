@@ -329,9 +329,12 @@ As of September 17, Ferris State accounts for the vast majority of all reported 
 ferris_days <- c(4,12,19,23,24,25,26)
 ferris_cases <- c(4,19,53,82,84,88,98)
 ferris_total <- tibble(Days=ferris_days, Cases=ferris_cases)
+
+fit <- glm(Cases ~ Days, data=ferris_total, family=poisson())
+
 ggplot(ferris_total, aes(x=Days, y=Cases)) +
   geom_point(size=3, color="black", fill="firebrick") +
-geom_smooth(span = 0.8, color="firebrick", fill="firebrick", alpha=0.3) +
+  stat_smooth(method="loess", se=FALSE,  color="firebrick", fill="firebrick", alpha=0.3) +
   scale_y_log10(limits = c(1,500)) +
   annotation_logticks(sides = "l") +
   ylab("Log(Total COVID-19 Cases)") +
