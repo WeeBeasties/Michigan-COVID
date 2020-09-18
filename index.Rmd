@@ -227,7 +227,9 @@ plotA <- ggplot(compareDetroit, aes(x=Date, y=Cases, color=County)) +
   geom_ma(ma_fun = EMA, n = 7, wilder = TRUE, linetype = 3, size = 1.25) +
   geom_vline(xintercept = as.POSIXct(as.Date(c("2020-07-04", "2020-09-07"))), linetype=4) +
   theme_bw() +
-  theme(legend.position = "none")
+  theme(legend.position = "none") +
+  theme(axis.text=element_text(size=14),
+        axis.title=element_text(size=18,face="bold"))
 
 plotB <- ggplot(compareDetroit, aes(x=Date, y=Deaths, color=County)) +
   geom_line() +
@@ -236,7 +238,9 @@ plotB <- ggplot(compareDetroit, aes(x=Date, y=Deaths, color=County)) +
   geom_ma(ma_fun = EMA, n = 7, wilder = TRUE, linetype = 3, size = 1.25) +
   geom_vline(xintercept = as.POSIXct(as.Date(c("2020-07-04", "2020-09-07"))), linetype=4) +
   theme_bw() +
-  theme(legend.position = "none")
+  theme(legend.position = "none") +
+    theme(axis.text=element_text(size=14),
+        axis.title=element_text(size=18,face="bold"))
 
 ggarrange(plotA, plotB, labels = c("A", "B"), ncol = 1, nrow = 2, font.label = list(size = 20, color = "black", face = "bold", family = NULL))
 ```
@@ -258,7 +262,9 @@ ggplot(counties, aes(x=Date, y=Cases, color=County, fill=County)) +
   geom_vline(xintercept = as.POSIXct(as.Date(c("2020-07-04", "2020-08-17", "2020-08-31", "2020-09-07"))), linetype=4) +
   facet_grid(rows=vars(County)) +
   theme_bw() +
-  theme(legend.position="none")
+  theme(legend.position="none") +
+    theme(axis.text=element_text(size=14),
+        axis.title=element_text(size=18,face="bold"))
 ```
 
 ```{r weekly_county_plot, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=7, fig.cap="**Figure 5:** A comparison of the number of total cases in Isabella, Mecosta, and Ottawa counties by week. The bars indicate total daily cases and the lines are four-week moving averages." }
@@ -271,7 +277,9 @@ ggplot(counties, aes(x=Week, y=Weekly.Cases, color=County, fill=County)) +
   geom_ma(ma_fun = EMA, n = 4, wilder = TRUE, linetype = 1, size = 2) +
   facet_grid(rows=vars(County)) +
   theme_bw() +
-  theme(legend.position="none")
+  theme(legend.position="none") +
+    theme(axis.text=element_text(size=14),
+        axis.title=element_text(size=18,face="bold"))
 ```
 
 CMU students went back to school earlier than Ferris students. It appears that this influx of students (and increased testing on campus) resulted in a spike of cases. It will be interesting to see how big of a spike Mecosta county experiences over the next few weeks. CMU is twice as large as Ferris, but has 10-times more COVID-19 cases. This probably reflects the fact that they recruit more strongly from counties with a higher endemic COVID-19 rate (near Detroit). Ferris, on the other hand, is primarily a regional institution and the counties that it draws most of its students from have lower overall COVID-19 infection rates. This is one time when living in the sticks has tangible upsides. Here is Ferris by itself to expand the y-axis a little bit.
@@ -286,7 +294,9 @@ ggplot(mecosta_county, aes(x=Date, y=Cases, color=County, fill=County)) +
   geom_ma(ma_fun = EMA, n = 7, wilder = TRUE, linetype = 1, size = 2) +
   geom_vline(xintercept = as.POSIXct(as.Date(c("2020-07-04","2020-08-31", "2020-09-07"))), linetype=4) +
   theme_bw() +
-  theme(legend.position="none")
+  theme(legend.position="none") +
+    theme(axis.text=element_text(size=14),
+        axis.title=element_text(size=18,face="bold"))
 ```
 
 For comparision sake, here are the numbers of positive COVID-19 cases being reported on the [Ferris COVID dashboard page](https://www.ferris.edu/HTMLS/news/coronavirus/covid-19-dashboard.htm).
@@ -307,10 +317,31 @@ plotData <- dataSet %>%
 ggplot(plotData, aes(x=Date, y=Cases, fill=Source)) +
   geom_bar(stat='identity', position='dodge', color='black') +
   scale_fill_manual(values=c("firebrick","gold")) +
-  theme_bw()
+  theme_bw() +
+  theme(axis.text=element_text(size=14),
+        axis.title=element_text(size=18,face="bold"))
 ```
 
-As of September 3, Ferris State accounts for the vast majority of all reported cases in Mecosta county. There does not yet appear to be a community-associated outbreak at this point. We will see if the numbers now begin to decline or if COVID-19 moves from campus out into the general population.
+As of September 17, Ferris State accounts for the vast majority of all reported cases in Mecosta county. There does not yet appear to be a community-associated outbreak at this point. The Mecosta county numbers often take several days to get processed and reported. We will see if the numbers now begin to decline or if COVID-19 moves from campus out into the general population.
+
+```{r ferris, echo=FALSE, comment=FALSE, error=FALSE, warning=FALSE, message=FALSE, fig.width=12, fig.height=7, fig.cap="**Figure 8:** Total COVID-19 cases at Ferris State University since the beginning of the fall semester."}
+
+ferris_days <- c(4,12,19,23,24,25,26)
+ferris_cases <- c(4,19,53,82,84,88,98)
+ferris_total <- tibble(Days=ferris_days, Cases=ferris_cases)
+ggplot(ferris_total, aes(x=Days, y=Cases)) +
+  geom_point(size=3, color="black", fill="firebrick") +
+geom_smooth(span = 0.8, color="firebrick", fill="firebrick", alpha=0.3) +
+  scale_y_log10(limits = c(1,500)) +
+  annotation_logticks(sides = "l") +
+  ylab("Log(Total COVID-19 Cases)") +
+  xlab("Time Since Fall Semester Began (Days)") +
+  theme_bw() +
+  theme(axis.text=element_text(size=14),
+        axis.title=element_text(size=18,face="bold"))
+```
+
+There appears to have been an exponential increase of COVID-19 cases on campus for the first few weeks of classes. A few positive students caused an initial outbreak within the dorms. The past few days seems to show a little slower spread. Perhaps we are beginning to bend the curve a bit - time will tell.
 
 ## Conclusions  
 
