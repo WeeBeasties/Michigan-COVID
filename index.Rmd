@@ -17,6 +17,7 @@ library(choroplethr)
 library(choroplethrMaps)
 library(RColorBrewer)
 library(tadaatoolbox)
+library(scales)
 ```
 
 ```{r data, echo=FALSE, message=FALSE, warning=FALSE}
@@ -122,6 +123,7 @@ write_csv(total, "./processedData/total.csv")
 
 # Create on comparison set
 compareDetroit <- rbind(total, metroDetroit, notDetroit)
+compareDetroit$Date <- as.POSIXct(as.Date(compareDetroit$Date))
 
 metroDataCount <- michiganTotalData %>% 
   group_by(County) %>% 
@@ -220,11 +222,20 @@ After normalizing for county population, metropolitan Detroit counties average `
 Since the Detroit metropolitan area seems to be hit harder than the rest of the state, I wondered what the trends of cases and deaths looked like over time. Figure 3 shows the trends of total cases and deaths along with a five-day moving average of each. 
 
 ```{r Detroit_plot, echo=FALSE, message=FALSE, warning=FALSE, fig.width=10, fig.height=10, fig.cap="**Figure 3:** A comparison of COVID-19 incidence between metropolitan Detroit (red) and the rest of Michigan (blue). The total state numbers are shown in green. Seven-day moving averages of the data are shown as dotted lines. The veritcal lines denote holidays: The 4th of July and Labor Day on September 7th."}
-plotA <- ggplot(compareDetroit, aes(x=Date, y=Cases, color=County)) +
-  geom_line() +
+
+plotA <- ggplot(compareDetroit) +
+  geom_line(aes(x=Date, y=Cases, color=County)) +
+  geom_rect(data = data.frame(xmin=as.POSIXct(as.Date(c("2020-07-01"))),xmax=as.POSIXct(as.Date(c("2020-07-15"))),ymin = -Inf,ymax = Inf),aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),fill = "grey", alpha = 0.3) +
+  ylim(0,1700) +
+  scale_x_datetime(breaks = date_breaks("months"),labels = date_format("%b")) +
+  annotate(geom="text",x=as.POSIXct(as.Date("2020-07-07")),
+    y=1650,label="July 4th\nHoliday",fontface="bold") +
+    geom_rect(data=data.frame(xmin=as.POSIXct(as.Date(c("2020-08-28"))),xmax=as.POSIXct(as.Date(c("2020-09-24"))),ymin = -Inf,ymax = Inf),aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),fill = "grey", alpha = 0.3) +
+  annotate(geom="text",x=as.POSIXct(as.Date("2020-09-11")),
+    y=1650,label="Universities\nReopen",fontface="bold") +
   ylim(0,1700) +
   scale_colour_manual(values=c('Total'="#336600", 'Metro Detroit'="firebrick", 'Not Detroit'="dodgerblue")) +
-  geom_ma(ma_fun = EMA, n = 7, wilder = TRUE, linetype = 3, size = 1.25) +
+  geom_ma(aes(x=Date, y=Cases, color=County),ma_fun = EMA, n = 7, wilder = TRUE, linetype = 3, size = 1.25) +
   geom_vline(xintercept = as.POSIXct(as.Date(c("2020-07-04", "2020-09-07"))), linetype=4) +
   theme_bw() +
   theme(legend.position = "none") +
@@ -233,6 +244,7 @@ plotA <- ggplot(compareDetroit, aes(x=Date, y=Cases, color=County)) +
 
 plotB <- ggplot(compareDetroit, aes(x=Date, y=Deaths, color=County)) +
   geom_line() +
+  scale_x_datetime(breaks = date_breaks("months"),labels = date_format("%b")) +
   ylim(0,170) +
   scale_colour_manual(values=c('Total'="#336600", 'Metro Detroit'="firebrick", 'Not Detroit'="dodgerblue")) +
   geom_ma(ma_fun = EMA, n = 7, wilder = TRUE, linetype = 3, size = 1.25) +
@@ -245,7 +257,7 @@ plotB <- ggplot(compareDetroit, aes(x=Date, y=Deaths, color=County)) +
 ggarrange(plotA, plotB, labels = c("A", "B"), ncol = 1, nrow = 2, font.label = list(size = 20, color = "black", face = "bold", family = NULL))
 ```
 
-The intial spike of COVID-19 cases appears to have spiked around the beginning of April in Detroit and about a month later in other counties (abeit at a much lower level). As restrictions were dropped in Michigan in June, the number of cases began to increase again. They appear to be flattening out over the past month. Interestingly, The majority of all COVID-19 deaths in Michigan occurred in Detroit in the first wave of infections. The reemergence of COVID-19 cases through July and August has not been accompanied by a coincident increase in deaths. Perhaps less severe cases are being detected more frequently now due to increased testing.
+The intial spike of COVID-19 cases appears to have spiked around the beginning of April in Detroit and about a month later in other counties (abeit at a much lower level). As restrictions were dropped in Michigan in June, the number of cases began to increase again. They appear to be flattening out over the past month. Interestingly, The majority of all COVID-19 deaths in Michigan occurred in Detroit in the first wave of infections. The reemergence of COVID-19 cases through July and August has not been accompanied by a coincident increase in deaths. Perhaps less severe cases are being detected more frequently now due to increased testing. There are two periods of time (shaded gray) where the number of cases from Detroit are lower than those for the rest of the state. Those represent the fourth of July holiday (probably poor social distancing) and, more recently, the reopening of universities in the state. If the school numbers can be brought into check, the number of cases statewide could theortetically be cut in half.
 
 ## Comparing Isabella (Central Michigan University), Mecosta (Ferris State University) and Ottawa (Grand Valley State University) county cases  
 
@@ -257,6 +269,7 @@ counties <- michiganTotalData %>%
 ggplot(counties, aes(x=Date, y=Cases, color=County, fill=County)) +
   scale_color_manual(values=c('mecosta'="firebrick", 'isabella'="dodgerblue", 'ottawa'="steelblue")) +
   scale_fill_manual(legend, values=c('mecosta'="firebrick", 'isabella'="dodgerblue", 'ottawa'="steelblue")) +
+  scale_x_datetime(breaks = date_breaks("months"),labels = date_format("%b")) +
   geom_bar(stat = "identity") +
   geom_ma(ma_fun = EMA, n = 7, wilder = TRUE, linetype = 1, size = 2) +
   geom_vline(xintercept = as.POSIXct(as.Date(c("2020-07-04", "2020-08-17", "2020-08-31", "2020-09-07"))), linetype=4) +
@@ -290,6 +303,7 @@ mecosta_county <- michiganTotalData %>%
 ggplot(mecosta_county, aes(x=Date, y=Cases, color=County, fill=County)) +
   scale_color_manual(values=c('mecosta'="firebrick", 'isabella'="dodgerblue", 'ottawa'="steelblue")) +
   scale_fill_manual(legend, values=c('mecosta'="firebrick", 'isabella'="dodgerblue", 'ottawa'="steelblue")) +
+  scale_x_datetime(breaks = date_breaks("months"),labels = date_format("%b")) +
   geom_bar(stat = "identity") +
   geom_ma(ma_fun = EMA, n = 7, wilder = TRUE, linetype = 1, size = 2) +
   geom_vline(xintercept = as.POSIXct(as.Date(c("2020-07-04","2020-08-31", "2020-09-07"))), linetype=4) +
