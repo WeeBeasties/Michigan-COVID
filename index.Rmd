@@ -23,7 +23,7 @@ library(scales)
 ```{r data, echo=FALSE, message=FALSE, warning=FALSE}
 
 # Load COVID-19 case data from Michigan state site
-download.file("https://www.michigan.gov/documents/coronavirus/Cases_by_County_and_Date_2020-09-29_703757_7.xlsx", destfile="./rawData/Cases_by_County_and_Date.xlsx")
+download.file("https://www.michigan.gov/documents/coronavirus/Cases_and_Deaths_by_County_and_Date_2020-09-30_703900_7.xlsx", destfile="./rawData/Cases_by_County_and_Date.xlsx")
 
 michiganData <- read_xlsx("./rawData/Cases_by_County_and_Date.xlsx")
 
@@ -134,6 +134,7 @@ metroDataNorm <- michiganTotalData %>%
   group_by(County) %>% 
   summarize(Cases = max(Cases.Cumulative)/pop2018*100000, Deaths = max(Deaths.Cumulative)/pop2018*100000, Detroit = Detroit)
 metroDataNorm <- unique(metroDataNorm)
+write_csv(metroDataNorm, "./processedData/normData.csv")
 
 weekly <- michiganTotalData %>% group_by(County, Week = week(Date)) %>% summarise(Weekly.Cases = sum(Cases), Weekly.Deaths = sum(Deaths), Case.Mortality=Weekly.Deaths/Weekly.Cases*100)
 
@@ -149,7 +150,7 @@ dataSummary <- unique(dataSummary)
 This is an exploratory analysis of some COVID-19 trends in Michigan that interest me. I strongly suspect that the vast majority of cases and adverse outcomes are concentrated in the Detroit area. Our response as a state, however, has not really been defined geographically. This is probably not the best way to steward our limited resources (note for future microbial pandemics). I am also keenly interested in the impact that reopening college campuses will have on the overall trajectory of COVID-19 incidence in our region. You can [view this report](https://reproducibleassessment.com/Michigan-COVID/index.html) online. The data and all analyses performed can be accessed on [my GitHub repo](https://www.github.com/WeeBeasties/Michigan-COVID). Feel free to fork and use my repo.
 
 ## Data  
-One should always be a bit skeptical of analyses with pretty graphs and figures. It is important to know what data were used, how they were manipulated, and also the trustworthyness of the data sources. TheMichigan COVID-19 data for this document were obtained at https://www.michigan.gov/coronavirus/0,9753,7-406-98163_98173---,00.html in the Public Use Datasets called "Cases by County and Date". The **September 29, 2020** dataset was used to create this report. Michigan county populations were found at https://worldpopulationreview.com/us-counties/states/mi which gives the 2018 census numbers. These were the most recent reliable numbers that I could find at the moment.
+One should always be a bit skeptical of analyses with pretty graphs and figures. It is important to know what data were used, how they were manipulated, and also the trustworthyness of the data sources. TheMichigan COVID-19 data for this document were obtained at https://www.michigan.gov/coronavirus/0,9753,7-406-98163_98173---,00.html in the Public Use Datasets called "Cases by County and Date". The **September 30, 2020** dataset was used to create this report. Michigan county populations were found at https://worldpopulationreview.com/us-counties/states/mi which gives the 2018 census numbers. These were the most recent reliable numbers that I could find at the moment.
 
 ## Data munging
 The Michigan COVID-19 dataset had a few peculiarities that I need to deal with in order to analyze it easily. There were several "counties" that are not actual Michigan counties that needed to be cleaned. The values for "Out-of-State" are not relevant for my purposes and were removed from the analyses. Likewise, prison populations ("FCI" and "MDOC") cannot be ascribed to particular counties and were, therefore, also removed. Cases with "Unknown" origins were also removed. Finally, the dataset lists "City of Detroit" as a separate entity, those numbers were added back into it's home country (Wayne) to facilitate analysis.
@@ -355,7 +356,7 @@ week3 <- as.integer(michiganTotalData %>%  filter(County == "mecosta", Date >= "
 week4 <- as.integer(michiganTotalData %>%  filter(County == "mecosta", Date >= "2020-09-11" & Date <= "2020-09-17") %>% summarize(sum(Cases)))
 week5 <- as.integer(michiganTotalData %>%  filter(County == "mecosta", Date >= "2020-09-18" & Date <= "2020-09-24") %>% summarize(sum(Cases)))
 week6 <- as.integer(michiganTotalData %>%  filter(County == "mecosta", Date >= "2020-09-25" & Date <= "2020-10-02") %>% summarize(sum(Cases)))
-ferris <- c(4,19,34,45,18,20)
+ferris <- c(4,19,34,45,18,22)
 mecosta <- c(week1,week2,week3,week4,week5,week6)
 dataSet <- tibble(Date = dates, Ferris = ferris, Mecosta = mecosta) 
 
@@ -374,8 +375,8 @@ As of September 17, Ferris State accounts for the vast majority of all reported 
 
 ```{r ferris, echo=FALSE, comment=FALSE, error=FALSE, warning=FALSE, message=FALSE, fig.width=12, fig.height=7, fig.cap="**Figure 9:** Total COVID-19 cases at Ferris State University since the beginning of the fall semester."}
 
-ferris_days <- c(4,11,18,22,23,24,25,26,29,30,31,32,33,36,37)
-ferris_cases <- c(4,19,53,82,84,88,98,105,113,114,116,116,121,131,136)
+ferris_days <- c(4,11,18,22,23,24,25,26,29,30,31,32,33,36,37,38)
+ferris_cases <- c(4,19,53,82,84,88,98,105,113,114,116,116,121,131,136,138)
 ferris_total <- tibble(Days=ferris_days, Cases=ferris_cases)
 
 fit <- glm(Cases ~ Days, data=ferris_total, family=poisson())
