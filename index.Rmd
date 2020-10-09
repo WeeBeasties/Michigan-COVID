@@ -23,7 +23,7 @@ library(scales)
 ```{r data, echo=FALSE, message=FALSE, warning=FALSE}
 
 # Load COVID-19 case data from Michigan state site
-download.file("https://www.michigan.gov/documents/coronavirus/Cases_and_Deaths_by_County_and_Date_2020-09-30_703900_7.xlsx", destfile="./rawData/Cases_by_County_and_Date.xlsx")
+download.file("https://www.michigan.gov/documents/coronavirus/Cases_and_Deaths_by_County_and_Date_2020-10-08_704622_7.xlsx", destfile="./rawData/Cases_by_County_and_Date.xlsx")
 
 michiganData <- read_xlsx("./rawData/Cases_by_County_and_Date.xlsx")
 
@@ -35,6 +35,10 @@ data(county.regions)
 
 # Load population densities
 density <- read_csv("./rawData/density.csv")
+
+# Load state mortality data
+mortality <- read_csv("./rawData/StateMortalityData.csv")
+
 ```
 
 ```{r cleanData, echo=FALSE, message=FALSE, warning=FALSE}
@@ -144,13 +148,16 @@ dataSummary <- michiganTotalData %>%
   summarize(value = max(Deaths.Cumulative), pop = pop2018)
 dataSummary <- unique(dataSummary)
 
+mortality <- cbind(mortality, metroDataNorm$Deaths)
+mortality <- mortality %>% rename("COVID-19" = "metroDataNorm$Deaths")
+write_csv(mortality, "./processedData/stateMortality.csv")
 ```
 
 ## Abstract  
 This is an exploratory analysis of some COVID-19 trends in Michigan that interest me. I strongly suspect that the vast majority of cases and adverse outcomes are concentrated in the Detroit area. Our response as a state, however, has not really been defined geographically. This is probably not the best way to steward our limited resources (note for future microbial pandemics). I am also keenly interested in the impact that reopening college campuses will have on the overall trajectory of COVID-19 incidence in our region. You can [view this report](https://reproducibleassessment.com/Michigan-COVID/index.html) online. The data and all analyses performed can be accessed on [my GitHub repo](https://www.github.com/WeeBeasties/Michigan-COVID). Feel free to fork and use my repo.
 
 ## Data  
-One should always be a bit skeptical of analyses with pretty graphs and figures. It is important to know what data were used, how they were manipulated, and also the trustworthyness of the data sources. TheMichigan COVID-19 data for this document were obtained at https://www.michigan.gov/coronavirus/0,9753,7-406-98163_98173---,00.html in the Public Use Datasets called "Cases by County and Date". The **September 30, 2020** dataset was used to create this report. Michigan county populations were found at https://worldpopulationreview.com/us-counties/states/mi which gives the 2018 census numbers. These were the most recent reliable numbers that I could find at the moment.
+One should always be a bit skeptical of analyses with pretty graphs and figures. It is important to know what data were used, how they were manipulated, and also the trustworthyness of the data sources. TheMichigan COVID-19 data for this document were obtained at https://www.michigan.gov/coronavirus/0,9753,7-406-98163_98173---,00.html in the Public Use Datasets called "Cases by County and Date". The **October 8, 2020** dataset was used to create this report. Michigan county populations were found at https://worldpopulationreview.com/us-counties/states/mi which gives the 2018 census numbers. These were the most recent reliable numbers that I could find at the moment.
 
 ## Data munging
 The Michigan COVID-19 dataset had a few peculiarities that I need to deal with in order to analyze it easily. There were several "counties" that are not actual Michigan counties that needed to be cleaned. The values for "Out-of-State" are not relevant for my purposes and were removed from the analyses. Likewise, prison populations ("FCI" and "MDOC") cannot be ascribed to particular counties and were, therefore, also removed. Cases with "Unknown" origins were also removed. Finally, the dataset lists "City of Detroit" as a separate entity, those numbers were added back into it's home country (Wayne) to facilitate analysis.
@@ -224,29 +231,23 @@ my_t.test <- t.test(Deaths~Detroit, data=metroDataNorm)
 ```
 After normalizing for county population, metropolitan Detroit counties average `r round(normDataTable[2,2]/normDataTable[1,2],1)`-times more COVID-19 cases and `r round(normDataTable[2,4]/normDataTable[1,4],1)`-times more COVID-19 deaths than the rest of Michigan counties. On average, metropolitan Detroit (m = `r round(my_t.test$estimate[2],1)`) experienced significantly higher rates of COVID-19 deaths per 100,000 people than the rest of the state (m = `r round(my_t.test$estimate[1],1)`), *t*(`r round(my_t.test$parameter[1],2)`) = `r round(my_t.test$statistic[1],2)`, *p* < `r round(my_t.test$p.value,3)`.
 
-```{r by_county, echo=FALSE, message=FALSE, warning=FALSE, fig.width=10, fig.height=12, fig.cap="**Figure 3:** Normalized COVID-19 death rates by county (deaths per 100,000 people). The vertical lines indicate the various mortality rates for Michigan (including the overall mortality rate for COVID-19). This average is heavily biases by the five counties with extremely high mortalities."}
+```{r newPlot, fig.width=10, fig.height=14, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="**Figure 3:** Normalized COVID-19 death rates by county (deaths per 100,000 people). The symbols indicate the mortality rates by various causes for each county."}
+mortData <- mortality %>% 
+  arrange('COVID-19') %>% 
+  pivot_longer(!County, names_to = "Cause", values_to = "Rate")
 
-stateDeaths <- sum(metroDataCount$Deaths)/sum(metroDataCount$pop2018)*100000
-annotation <- tibble(x = c(10,10,10,10,10,10),
-                     y = c(9.7, 14.5, 44.2, stateDeaths, 161, 195),
-                     label = c("Traffic accidents", "Influenza/Pneumonia","All accidents", "COVID-19", "Cancers", "Heart disease"))
-
-ggplot(metroDataNorm, aes(x=reorder(County, +Deaths), y=Deaths)) + 
-  geom_point(col="firebrick", size=3) +   # Draw points
-  geom_segment(aes(x=County, 
-                   xend=County, 
-                   y=min(Deaths), 
-                   yend=max(Deaths)), 
-               linetype="dashed", 
-               size=0.1) +
-  ylab("Deaths per 100,000 population") +
-  xlab("County") +
-  ylim(0,200) +
-  geom_hline(yintercept = c(9.7, 14.5, 44.2, stateDeaths, 161, 195), linetype=1) +
-  geom_text(data=annotation, aes( x=x, y=y, label=label), color="black", size=5 , angle=90, fontface="bold", nudge_y = 2) +
+ggplot(mortData, aes(x = County, y = Rate, colour = Cause, fill = Cause, shape = Cause, size = Cause)) +
+  geom_point() +
+  scale_fill_manual(values = c("black", "blue", "firebrick", "gray30", "green4", "darkorange")) +
+  scale_shape_manual(values=c(22,23,21,24,23,25)) +
+  scale_size_manual(values = c(2,2,4,2,2,2)) +
+  ylab("Deaths per 100,000 people") +
   coord_flip() +
   theme_bw()
 ```
+
+
+
 
 Figure 3 highlights the fact that deaths per capita is not equal across all counties. Seven counties (including the Detroit metropolitan area) and much higher. Nearly three dozen counties have normalized COVID-19 death rates lower than that of car fatalities in the state. A total of `r prettyNum(sum(dataSummary$value),big.mark=",",scientific=FALSE)` people have died of COVID-19 out of a population of `r prettyNum(sum(dataSummary$pop),big.mark=",",scientific=FALSE)` people. That gives a normalized value of `r round(sum(dataSummary$value)/sum(dataSummary$pop)*100000,1)` people per 100,000.
 
@@ -349,15 +350,16 @@ ggplot(mecosta_county, aes(x=Date, y=Cases, color=County, fill=County)) +
 For comparision sake, here are the numbers of positive COVID-19 cases being reported on the [Ferris COVID dashboard page](https://www.ferris.edu/HTMLS/news/coronavirus/covid-19-dashboard.htm).
 
 ```{r dashboard, echo=FALSE, comment=FALSE, error=FALSE, warning=FALSE, fig.width=12, fig.height=8, fig.cap="**Figure 8:** Total number of COVID-19 cases. Ferris reports its numbers every Thursday and began collecting data on August 21. The state-reported numbers for Mecosta county are shown for the same intervals."}
-dates <- c("08/24-8/27", "08/28-09/03", "09/04-09/10","9/11-9/17","9/18-9/24","9/25-10/2")
+dates <- c("08/24-8/27", "08/28-09/03", "09/04-09/10","09/11-09/17","09/18-09/24","09/25-10/02","10/03-10/09")
 week1 <- as.integer(michiganTotalData %>%  filter(County == "mecosta", Date >= "2020-08-24" & Date <= "2020-08-27") %>% summarize(sum(Cases)))
 week2 <- as.integer(michiganTotalData %>%  filter(County == "mecosta", Date >= "2020-08-28" & Date <= "2020-09-03") %>% summarize(sum(Cases)))
 week3 <- as.integer(michiganTotalData %>%  filter(County == "mecosta", Date >= "2020-09-04" & Date <= "2020-09-10") %>% summarize(sum(Cases)))
 week4 <- as.integer(michiganTotalData %>%  filter(County == "mecosta", Date >= "2020-09-11" & Date <= "2020-09-17") %>% summarize(sum(Cases)))
 week5 <- as.integer(michiganTotalData %>%  filter(County == "mecosta", Date >= "2020-09-18" & Date <= "2020-09-24") %>% summarize(sum(Cases)))
 week6 <- as.integer(michiganTotalData %>%  filter(County == "mecosta", Date >= "2020-09-25" & Date <= "2020-10-02") %>% summarize(sum(Cases)))
-ferris <- c(4,19,34,45,18,22)
-mecosta <- c(week1,week2,week3,week4,week5,week6)
+week7 <- as.integer(michiganTotalData %>%  filter(County == "mecosta", Date >= "2020-10-03" & Date <= "2020-10-09") %>% summarize(sum(Cases)))
+ferris <- c(4,19,34,45,18,29,32)
+mecosta <- c(week1,week2,week3,week4,week5,week6,week7)
 dataSet <- tibble(Date = dates, Ferris = ferris, Mecosta = mecosta) 
 
 plotData <- dataSet %>%
@@ -375,8 +377,8 @@ As of September 17, Ferris State accounts for the vast majority of all reported 
 
 ```{r ferris, echo=FALSE, comment=FALSE, error=FALSE, warning=FALSE, message=FALSE, fig.width=12, fig.height=7, fig.cap="**Figure 9:** Total COVID-19 cases at Ferris State University since the beginning of the fall semester."}
 
-ferris_days <- c(4,11,18,22,23,24,25,26,29,30,31,32,33,36,37,38)
-ferris_cases <- c(4,19,53,82,84,88,98,105,113,114,116,116,121,131,136,138)
+ferris_days <- c(4,11,18,22,23,24,25,26,29,30,31,32,33,36,37,38,39,40,43,44,45,46)
+ferris_cases <- c(4,19,53,82,84,88,98,105,113,114,116,116,121,131,136,138,145,149,158,162,170,177)
 ferris_total <- tibble(Days=ferris_days, Cases=ferris_cases)
 
 fit <- glm(Cases ~ Days, data=ferris_total, family=poisson())
